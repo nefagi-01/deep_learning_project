@@ -3,6 +3,7 @@ from torch.optim import Adam
 from torch import nn
 import torch
 from others.unet import UNet
+from others.rednet import REDNet30
 
 
 class Model:
@@ -21,8 +22,7 @@ class Model:
         # train_input: tensor of size (N,C,H,W) containing a noisy version of the images
         # train_target: tensor of size (N, C, H, W) containing another noisy version of the same images, which only differs the input by their noise.
         for e in range(num_epochs):
-            if e % 10 == 0:
-                print(e)
+            print(e)
             for inp, target in zip(train_input.split(self.batch_size), train_target.split(self.batch_size)):
                 output = self.model(inp)
                 loss = self.mse(output, target)
