@@ -1,4 +1,4 @@
-from others.helpers import *
+from .helpers import *
 
 
 class UNet(nn.Module):

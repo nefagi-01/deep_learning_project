@@ -2,21 +2,24 @@
 from torch.optim import Adam
 from torch import nn
 import torch
-from others.unet import UNet
-from others.rednet import REDNet30
+from .others.unet import UNet
+from .others.rednet import REDNet30
+from pathlib import Path
 
 
 class Model:
     def __init__(self) -> None:
         # instantiate model + optimizer + loss function + any other stuff you need
         self.model = UNet()
-        self.optimizer = Adam(self.model.parameters(), lr=1e-3)
+        self.optimizer = Adam(self.model.parameters(), lr=1e-3, betas=(0.9, 0.99), eps=1e-8)
         self.mse = nn.MSELoss()
-        self.batch_size = 100
+        self.batch_size = 4
 
     def load_pretrained_model(self) -> None:
         # This loads the parameters saved in bestmodel.pth into the model
-        pass
+        model_path = Path(__file__).parent / "bestmodel.pth"
+        model = torch.load(model_path)
+        self.model.load_state_dict(model)
 
     def train(self, train_input, train_target, num_epochs) -> None:
         # train_input: tensor of size (N,C,H,W) containing a noisy version of the images
