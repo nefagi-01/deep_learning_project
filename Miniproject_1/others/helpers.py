@@ -11,19 +11,19 @@ class Conv(nn.Module):
         if not linear_activation:
             if not batch_norm:
                 self.conv = nn.Sequential(
-                    nn.Conv2d(in_channels, out_channels, kernel_size=3, padding='same', bias=True),
+                    nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, bias=True),
                     nn.LeakyReLU(inplace=True, negative_slope=1e-1))
             else:
                 self.conv = nn.Sequential(
-                    nn.Conv2d(in_channels, out_channels, kernel_size=3, padding='same', bias=True),
+                    nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, bias=True),
                     nn.BatchNorm2d(out_channels),
                     nn.LeakyReLU(inplace=True, negative_slope=1e-1))
         if linear_activation:
             if not batch_norm:
-                self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding='same', bias=True)
+                self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, bias=True)
             else:
                 self.conv = nn.Sequential(
-                    nn.Conv2d(in_channels, out_channels, kernel_size=3, padding='same', bias=True),
+                    nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, bias=True),
                     nn.BatchNorm2d(out_channels))
 
     def forward(self, x):
