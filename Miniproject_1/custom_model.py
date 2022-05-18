@@ -10,16 +10,16 @@ from pathlib import Path
 from others.psnr import compute_psnr
 
 
-class Model:
-    def __init__(self) -> None:
+class MyModel:
+    def __init__(self, network, batch) -> None:
         # instantiate model + optimizer + loss function + any other stuff you need
-        self.model = AutoEncoder(num_layers=5)
+        self.model = network
         # Use GPU if possible
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(device=self.device)
         self.optimizer = Adam(self.model.parameters(), lr=1e-3, betas=(0.9, 0.99), eps=1e-8)
         self.loss = nn.MSELoss()
-        self.batch_size = 5
+        self.batch_size = batch
 
     def load_pretrained_model(self) -> None:
         # This loads the parameters saved in bestmodel.pth into the model
