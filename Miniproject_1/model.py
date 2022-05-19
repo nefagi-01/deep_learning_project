@@ -2,21 +2,24 @@
 from torch.optim import Adam
 from torch import nn
 import torch
+
+from others.autoencoder import AutoEncoder
+from others.rednet import REDNet
 from others.unet import UNet
-from others.rednet import REDNet30
 from pathlib import Path
+from others.psnr import compute_psnr
 
 
 class Model:
     def __init__(self) -> None:
         # instantiate model + optimizer + loss function + any other stuff you need
-        self.model = UNet()
+        self.model = AutoEncoder(num_layers=5)
         # Use GPU if possible
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model.to(device=device)
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model.to(device=self.device)
         self.optimizer = Adam(self.model.parameters(), lr=1e-3, betas=(0.9, 0.99), eps=1e-8)
-        self.mse = nn.MSELoss()
-        self.batch_size = 4
+        self.loss = nn.MSELoss()
+        self.batch_size = 5
 
     def load_pretrained_model(self) -> None:
         # This loads the parameters saved in bestmodel.pth into the model
@@ -35,7 +38,7 @@ class Model:
             print(e)
             for inp, target in zip(train_input.split(self.batch_size), train_target.split(self.batch_size)):
                 output = self.model(inp)
-                loss = self.mse(output, target)
+                loss = self.loss(output, target)
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()

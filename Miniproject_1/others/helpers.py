@@ -59,7 +59,7 @@ class Up(nn.Module):
         return self.conv(x)
 
 
-class LastUp(nn.Module):
+class OutConv(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
         self.conv = Conv(in_channels, out_channels, linear_activation=True)
