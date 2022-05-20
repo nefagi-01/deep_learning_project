@@ -70,6 +70,10 @@ class Convolution(Module):
     def backward(self, dl_dout):
         #compute gradient with respect to weights (kernel)
         self.dl_dw = (self.apply_conv(self.x.transpose(0,1), self.add_padding(dl_dout, 0, self.stride).transpose(0,1))).transpose(0,1)
+        #shape may be different because kernel wasn't applied entirely on self.x (e.g: x_shape = (1,3,5,5), kernel_shape = (2,3,2,2), stride = 2 , padding = 0)
+        if self.dl_dw.shape != self.kernel.shape:
+            self.dl_dw = self.dl_dw[:, :, :self.kernel.shape[-2], :self.kernel.shape[-1]]
+
         #compute gradient with respect to input
         #rotate kernel by 180 and transpose
         kernel = self.kernel.flip(self.kernel.dim()-2, self.kernel.dim()-1)
@@ -77,11 +81,12 @@ class Convolution(Module):
         #add padding to dl_dout
         dl_dout_pad = self.add_padding(dl_dout, 1, self.stride)
         #compute backward by convolution
-        print(dl_dout.shape)
-        print(dl_dout_pad.shape)
-        print(kernel.shape)
-        print(self.apply_conv(dl_dout_pad, kernel, 1).shape)
         dl_dx = self.apply_conv(dl_dout_pad, kernel, 1)
+        #shape may be different because kernel wasn't applied entirely on self.x (e.g: x_shape = (1,3,5,5), kernel_shape = (2,3,2,2), stride = 2 , padding = 0)
+        if dl_dx.shape != self.x.shape:
+            dl_dx_pad = torch.empty(self.x.shape).fill_(0)
+            dl_dx_pad[:, :, :dl_dx.shape[-2], :dl_dx.shape[-1]] = dl_dx
+            dl_dx = dl_dx_pad
        
         return dl_dx
 
