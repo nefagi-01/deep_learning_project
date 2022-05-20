@@ -14,7 +14,7 @@ class Module(object):
 
 #TO IMPLEMENT:
      
-# -Convolution layer. []
+# -Convolution layer. [x]
 # - Transpose convolution layer, or alternatively a combination of Nearest neighbor upsampling + Convolution. []
 # - Upsampling layer, which is usually implemented with transposed convolution, but you can alternatively use a combination of Nearest neighbor upsampling + Convolution for this mini-project. []
 # - ReLU [x]
@@ -23,13 +23,50 @@ class Module(object):
 # - Mean Squared Error as a Loss Function [x]
 # - Stochastic Gradient Descent (SGD) optimizer [x]
 
+
+class Upsample(Module):
+    def __init__(self, scale_factor):
+        self.scale_factor = scale_factor
+    
+    def rescale(self, x):
+        shape = x.size()
+        x = x.view(shape[0], shape[1], shape[2] * shape[3], 1)
+        ups1 = x
+        for i in range(self.scale_factor-1): 
+            ups1 = torch.cat((ups1, x), 3) 
+        ups1 = ups1.view(shape[0], shape[1], shape[2], self.scale_factor * shape[3]) 
+        ups2 = ups1
+        for i in range(self.scale_factor-1): 
+            ups2 = torch.cat((ups2, ups1), 3) 
+        ups2 = ups2.view(shape[0], shape[1], shape[2] * self.scale_factor, shape[3] * self.scale_factor)
+        return ups2
+
+    
+    def forward(self, x):
+        #implementation of nearest neighbour
+        self.x = x
+        return self.rescale(x)
+        
+    def backward(self, dl_dout):
+        tmp1 = unfold(dl_dout, (self.scale_factor, self.scale_factor), stride = self.scale_factor).reshape(dl_dout.shape[0], dl_dout.shape[1], -1, self.x.shape[2]*self.x.shape[3]).sum(2)
+        result = fold(tmp1, (self.x.shape[-2], self.x.shape[-1]), (1,1))
+        return result
+        
+    def param(self):
+        return []
+    
+    def zero_grad(self):
+        pass
+
+
+
 class Convolution(Module):
     def __init__(self, in_channels, out_channels, kernel_size=2, padding=0, stride = 1):
         #initialize weights
         self.kernel = torch.ones((out_channels, in_channels, kernel_size, kernel_size))
 
         #initialize gradient vector
-        self.dl_dw = torch.empty(self.kernel.size()).fill_(0)
+        self.dl_dw = torch.empty(self.kernel.size()).fill_(1)
 
         #stride, padding
         self.stride = stride
