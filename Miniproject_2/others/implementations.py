@@ -16,7 +16,7 @@ class Module(object):
      
 # -Convolution layer. [x]
 # - Transpose convolution layer, or alternatively a combination of Nearest neighbor upsampling + Convolution. []
-# - Upsampling layer, which is usually implemented with transposed convolution, but you can alternatively use a combination of Nearest neighbor upsampling + Convolution for this mini-project. []
+# - Upsampling layer, which is usually implemented with transposed convolution, but you can alternatively use a combination of Nearest neighbor upsampling + Convolution for this mini-project. [x]
 # - ReLU [x]
 # - Sigmoid [x]
 # - A container like torch.nn.Sequential to put together an arbitrary configuration of modules together. [x]
