@@ -63,10 +63,10 @@ class Upsample(Module):
 class Convolution(Module):
     def __init__(self, in_channels, out_channels, kernel_size=2, padding=0, stride = 1):
         #initialize weights
-        self.kernel = torch.ones((out_channels, in_channels, kernel_size, kernel_size))
+        self.kernel = torch.empty((out_channels, in_channels, kernel_size, kernel_size)).fill_(1)
 
         #initialize gradient vector
-        self.dl_dw = torch.empty(self.kernel.size()).fill_(1)
+        self.dl_dw = torch.empty(self.kernel.size()).fill_(0)
 
         #stride, padding
         self.stride = stride
@@ -88,6 +88,9 @@ class Convolution(Module):
             return x_pad
         else:
             return x
+
+    def param(self):
+        return (self.kernel, self.dl_dw)
 
 
     def apply_conv(self, x, kernel, stride=1):
@@ -184,7 +187,7 @@ class Sequential(Module):
     # each parameter in the list is represented as a tuple containing the parameter tensor (e.g. w)
     # and the gradient tensor (e.g. dl/dw)
     def param(self):
-        return [ p for module in self.modules for p in module.param() ]
+        return [ module.param() for module in self.modules ]
     
     # sets the gradient of each layer to zero before the next batch can go through the network
     def zero_grad(self):
@@ -208,7 +211,7 @@ class LossMSE(Module):
 class optim_SGD(Module):
     # parameters: the parameters of the Sequential module
     def __init__(self, parameters, learning_rate):
-        self.param = parameters #[ p.shallow() for tup in parameters for p in tup ]
+        self.param = [p for p in parameters if p != []] #[ p.shallow() for tup in parameters for p in tup ]
         self.lr = learning_rate
         
     # performs a gradient step (SGD) for all parameters
