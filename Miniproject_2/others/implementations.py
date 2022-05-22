@@ -171,7 +171,7 @@ class Conv2d(Module):
         dl_dout = self.delation(dl_dout)
 
         # add padding to dl_dout
-        dl_dout_pad = self.add_padding(dl_dout, ((self.x.shape[-2] - not_covered[-2] - dl_dout.shape[-2]), (self.x.shape[-1] - not_covered[-1] - dl_dout.shape[-1])))
+        dl_dout_pad = self.add_padding(dl_dout, ((x.shape[-2] - dl_dout.shape[-2]), (x.shape[-1] - dl_dout.shape[-1])))
 
         # compute backward by convolution
         dl_dx = self.apply_conv(dl_dout_pad, kernel)
