@@ -76,8 +76,8 @@ class Conv2d(Module):
         self.bias = empty(out_channels).double().fill_(0) if bias else None
 
         # initialize weights
-        self.kernel = empty((out_channels, in_channels, *kernel_size)).double()
-        self.xavier_init()
+        self.kernel = empty((out_channels, in_channels, *kernel_size)).double().fill_(1)
+        # self.xavier_init()
 
 
         # initialize gradient vectors
@@ -139,37 +139,36 @@ class Conv2d(Module):
         self.x = self.add_padding(x, self.padding).double()
         return self.apply_conv(self.x, self.kernel, self.stride, include_bias=True)
 
-    def backward(self, dl_dout):
-        # compute gradient with respect to weights (kernel)
-        self.dl_dw = (self.apply_conv(self.x.transpose(0, 1), dl_dout.transpose(0, 1), stride = self.stride)).transpose(0, 1)
-        print(self.x.shape, dl_dout.shape)
-        print(self.dl_dw.shape, self.kernel.shape)
-        # shape may be different because kernel wasn't applied entirely on self.x (e.g: x_shape = (1,3,5,5), kernel_shape = (2,3,2,2), stride = 2 , padding = 0)
-        if self.dl_dw.shape != self.kernel.shape:
-            print("passooo")
-            dl_dw_pad = empty(self.kernel.shape).fill_(0)
-            dl_dw_pad[:, :, :self.dl_dw.shape[-2], :self.dl_dw.shape[-1]] = self.dl_dw
-            self.dl_dw = dl_dw_pad
-        print(self.dl_dw.shape)
+    def delation(self, x):
+        if self.stride != (1, 1):
+            tmp = empty(x.shape[0], x.shape[1], (x.shape[2] - 1) * self.stride[0] + 1,
+                        (x.shape[3] - 1) * self.stride[1] + 1).fill_(0)
+            tmp[:, :, 0::self.stride[0], 0::self.stride[1]] = x
+            x = tmp
+        return x
 
+    def backward(self, dl_dout):
+        #compute size of not covered part of self.x
+        not_covered = (self.x.shape[-2] - (self.stride[-2] * (dl_dout.shape[-2] - 1) + self.kernel.shape[-2]), self.x.shape[-1] - (self.stride[-1] * (dl_dout.shape[-1] - 1) + self.kernel.shape[-1]))
+        
+        if not_covered != (0,0):
+            x = self.x[:,:,:-not_covered[-2],:-not_covered[-1]]
+        else:
+            x = self.x
+        
+        # compute gradient with respect to weights (kernel)
+        self.dl_dw = (self.apply_conv(x.transpose(0, 1), self.delation(dl_dout).transpose(0, 1))).transpose(0, 1)
+      
         # compute gradient with respect to bias
         if self.bias is not None:
-            self.dl_db = dl_dout.sum(dim=(dl_dout.dim()-4, dl_dout.dim() - 2, dl_dout.dim() - 1)).view(-1, self.kernel.shape[0])
+            self.dl_db = dl_dout.sum(dim=(dl_dout.dim()-4, dl_dout.dim() - 2, dl_dout.dim() - 1))
 
         # compute gradient with respect to input
         # rotate kernel by 180 and transpose
         kernel = self.kernel.flip(self.kernel.dim() - 2, self.kernel.dim() - 1)
         kernel = kernel.transpose(0, 1)
-
-        #compute size of not covered part of self.x
-        not_covered = (self.x.shape[-2] - (self.stride[-2] * (dl_dout.shape[-2] - 1) + self.kernel.shape[-2]), self.x.shape[-1] - (self.stride[-1] * (dl_dout.shape[-1] - 1) + self.kernel.shape[-1]))
-        
-        #add dilation to dl_dout if stride > 1
-        if self.stride != (1, 1):
-            tmp = empty(dl_dout.shape[0], dl_dout.shape[1], (dl_dout.shape[2] - 1) * self.stride[0] + 1,
-                        (dl_dout.shape[3] - 1) * self.stride[1] + 1).fill_(0)
-            tmp[:, :, 0::self.stride[0], 0::self.stride[1]] = dl_dout
-            dl_dout = tmp
+         
+        dl_dout = self.delation(dl_dout)
 
         # add padding to dl_dout
         dl_dout_pad = self.add_padding(dl_dout, ((self.x.shape[-2] - not_covered[-2] - dl_dout.shape[-2]), (self.x.shape[-1] - not_covered[-1] - dl_dout.shape[-1])))
@@ -177,12 +176,8 @@ class Conv2d(Module):
         # compute backward by convolution
         dl_dx = self.apply_conv(dl_dout_pad, kernel)
 
-        # print(dl_dout[0][0])
-        # print(dl_dout_pad[0][0])
         # shape may be different because kernel wasn't applied entirely on self.x (e.g: x_shape = (1,3,5,5), kernel_shape = (2,3,2,2), stride = 2 , padding = 0)
-        # print("\nkernel",kernel.shape,"\ndl_dout", dl_dout.shape,"\ndl_dout_pad", dl_dout_pad.shape,"\ndl_dx", dl_dx.shape)
         if dl_dx.shape != self.x.shape:
-            # print("passo")
             dl_dx_pad = empty(self.x.shape).fill_(0)
             dl_dx_pad[:, :, :-not_covered[-2], :-not_covered[-1]] = dl_dx
             dl_dx = dl_dx_pad
