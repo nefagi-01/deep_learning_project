@@ -77,7 +77,6 @@ class Conv2d(Module):
 
         # initialize bias
         self.bias = empty(out_channels).double().fill_(0) if bias else None
-        print(self.bias.shape)
 
         # initialize gradient vectors
         self.dl_dw = empty(self.kernel.size()).double().fill_(0)
@@ -96,12 +95,12 @@ class Conv2d(Module):
     def add_padding(self, x, padding, stride=(1, 1)):
         if stride != (1, 1):
             tmp = empty(x.shape[0], x.shape[1], (x.shape[2] - 1) * stride[0] + 1,
-                        (x.shape[3] - 1) * stride[1] + 1).fill_(0).double()
+                        (x.shape[3] - 1) * stride[1] + 1).fill_(0)
             tmp[:, :, 0::stride[0], 0::stride[1]] = x
             x = tmp
-        if padding != 0:
+        if padding != (0, 0):
             shape = x.shape
-            x_pad = empty(shape[0], shape[1], shape[2] + padding[0] * 2, shape[3] + padding[1] * 2).fill_(0).double()
+            x_pad = empty(shape[0], shape[1], shape[2] + padding[0] * 2, shape[3] + padding[1] * 2).fill_(0)
             x_pad[:, :, padding[0]:-padding[0], padding[1]:-padding[1]] = x
             return x_pad
         else:
@@ -116,20 +115,20 @@ class Conv2d(Module):
 
     def forward(self, x):
         # save input for backward pass
-        self.x = self.add_padding(x, self.padding)
+        self.x = self.add_padding(x, self.padding).double()
         return self.apply_conv(self.x, self.kernel, self.stride, include_bias=True)
 
     def backward(self, dl_dout):
         # compute gradient with respect to weights (kernel)
         self.dl_dw = (self.apply_conv(self.x.transpose(0, 1),
-                                      self.add_padding(dl_dout, 0, self.stride).transpose(0, 1))).transpose(0, 1)
+                                      self.add_padding(dl_dout, (0, 0), self.stride).transpose(0, 1))).transpose(0, 1)
         # shape may be different because kernel wasn't applied entirely on self.x (e.g: x_shape = (1,3,5,5), kernel_shape = (2,3,2,2), stride = 2 , padding = 0)
         if self.dl_dw.shape != self.kernel.shape:
             self.dl_dw = self.dl_dw[:, :, :self.kernel.shape[-2], :self.kernel.shape[-1]]
 
         # compute gradient with respect to bias
         if self.bias is not None:
-            self.dl_db = dl_dout.sum(dim=(dl_dout.dim() - 2, dl_dout.dim() - 1)).view(-1, self.kernel.shape[0])
+            self.dl_db = dl_dout.sum(dim=(dl_dout.dim()-4, dl_dout.dim() - 2, dl_dout.dim() - 1)).view(-1, self.kernel.shape[0])
 
         # compute gradient with respect to input
         # rotate kernel by 180 and transpose
