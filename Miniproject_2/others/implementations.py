@@ -96,12 +96,12 @@ class Conv2d(Module):
     def add_padding(self, x, padding, stride=(1, 1)):
         if stride != (1, 1):
             tmp = empty(x.shape[0], x.shape[1], (x.shape[2] - 1) * stride[0] + 1,
-                        (x.shape[3] - 1) * stride[1] + 1).fill_(0)
+                        (x.shape[3] - 1) * stride[1] + 1).fill_(0).double()
             tmp[:, :, 0::stride[0], 0::stride[1]] = x
             x = tmp
         if padding != 0:
             shape = x.shape
-            x_pad = empty(shape[0], shape[1], shape[2] + padding[0] * 2, shape[3] + padding[1] * 2).fill_(0)
+            x_pad = empty(shape[0], shape[1], shape[2] + padding[0] * 2, shape[3] + padding[1] * 2).fill_(0).double()
             x_pad[:, :, padding[0]:-padding[0], padding[1]:-padding[1]] = x
             return x_pad
         else:
