@@ -92,17 +92,7 @@ class Conv2d(Module):
             padding = (padding, padding)
         self.padding = padding
 
-    def add_padding(self, x, padding, stride=(1, 1)):
-        if stride != (1, 1):
-            tmp = empty(x.shape[0], x.shape[1], (x.shape[2] - 1) * stride[0] + 1,
-                        (x.shape[3] - 1) * stride[1] + 1).fill_(0)
-            tmp[:, :, 0::stride[0], 0::stride[1]] = x
-            x = tmp
-            shape = x.shape
-            x_pad = empty(shape[0], shape[1], shape[2] + 1 * 2, shape[3] +1 * 2).fill_(0)
-            x_pad[:, :, 1:-1, 1:-1] = x
-            x = x_pad
-
+    def add_padding(self, x, padding):
         if padding != (0, 0):
             shape = x.shape
             x_pad = empty(shape[0], shape[1], shape[2] + padding[0] * 2, shape[3] + padding[1] * 2).fill_(0)
@@ -125,11 +115,16 @@ class Conv2d(Module):
 
     def backward(self, dl_dout):
         # compute gradient with respect to weights (kernel)
-        self.dl_dw = (self.apply_conv(self.x.transpose(0, 1),
-                                      self.add_padding(dl_dout, (0, 0), self.stride).transpose(0, 1))).transpose(0, 1)
+        self.dl_dw = (self.apply_conv(self.x.transpose(0, 1), dl_dout.transpose(0, 1), stride = self.stride)).transpose(0, 1)
+        print(self.x.shape, dl_dout.shape)
+        print(self.dl_dw.shape, self.kernel.shape)
         # shape may be different because kernel wasn't applied entirely on self.x (e.g: x_shape = (1,3,5,5), kernel_shape = (2,3,2,2), stride = 2 , padding = 0)
         if self.dl_dw.shape != self.kernel.shape:
-            self.dl_dw = self.dl_dw[:, :, :self.kernel.shape[-2], :self.kernel.shape[-1]]
+            print("passooo")
+            dl_dw_pad = empty(self.kernel.shape).fill_(0)
+            dl_dw_pad[:, :, :self.dl_dw.shape[-2], :self.dl_dw.shape[-1]] = self.dl_dw
+            self.dl_dw = dl_dw_pad
+        print(self.dl_dw.shape)
 
         # compute gradient with respect to bias
         if self.bias is not None:
@@ -139,18 +134,36 @@ class Conv2d(Module):
         # rotate kernel by 180 and transpose
         kernel = self.kernel.flip(self.kernel.dim() - 2, self.kernel.dim() - 1)
         kernel = kernel.transpose(0, 1)
+
+        #compute size of not covered part of self.x
+        not_covered = (self.x.shape[-2] - (self.stride[-2] * (dl_dout.shape[-2] - 1) + self.kernel.shape[-2]), self.x.shape[-1] - (self.stride[-1] * (dl_dout.shape[-1] - 1) + self.kernel.shape[-1]))
+        
+        #add dilation to dl_dout if stride > 1
+        if self.stride != (1, 1):
+            tmp = empty(dl_dout.shape[0], dl_dout.shape[1], (dl_dout.shape[2] - 1) * self.stride[0] + 1,
+                        (dl_dout.shape[3] - 1) * self.stride[1] + 1).fill_(0)
+            tmp[:, :, 0::self.stride[0], 0::self.stride[1]] = dl_dout
+            dl_dout = tmp
+
         # add padding to dl_dout
-        dl_dout_pad = self.add_padding(dl_dout, (1, 1), self.stride)
+        dl_dout_pad = self.add_padding(dl_dout, ((self.x.shape[-2] - not_covered[-2] - dl_dout.shape[-2]), (self.x.shape[-1] - not_covered[-1] - dl_dout.shape[-1])))
+
         # compute backward by convolution
         dl_dx = self.apply_conv(dl_dout_pad, kernel)
-        print(dl_dout[0][0])
-        print(dl_dout_pad[0][0])
+
+        # print(dl_dout[0][0])
+        # print(dl_dout_pad[0][0])
         # shape may be different because kernel wasn't applied entirely on self.x (e.g: x_shape = (1,3,5,5), kernel_shape = (2,3,2,2), stride = 2 , padding = 0)
-        print("\nkernel",kernel.shape,"\ndl_dout", dl_dout.shape,"\ndl_dout_pad", dl_dout_pad.shape,"\ndl_dx", dl_dx.shape)
+        # print("\nkernel",kernel.shape,"\ndl_dout", dl_dout.shape,"\ndl_dout_pad", dl_dout_pad.shape,"\ndl_dx", dl_dx.shape)
         if dl_dx.shape != self.x.shape:
+            # print("passo")
             dl_dx_pad = empty(self.x.shape).fill_(0)
-            dl_dx_pad[:, :, :dl_dx.shape[-2], :dl_dx.shape[-1]] = dl_dx
+            dl_dx_pad[:, :, :-not_covered[-2], :-not_covered[-1]] = dl_dx
             dl_dx = dl_dx_pad
+
+        #remove padding from dl_dx
+        if self.padding != (0, 0):
+            dl_dx = dl_dx[:, :, self.padding[-2]:-self.padding[-2], self.padding[-1]:-self.padding[-1]]
 
         return dl_dx
 
