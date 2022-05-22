@@ -71,13 +71,14 @@ class Conv2d(Module):
         self.x = None
         if type(kernel_size) is int:
             kernel_size = (kernel_size, kernel_size)
+        
+        # initialize bias
+        self.bias = empty(out_channels).double().fill_(0) if bias else None
 
         # initialize weights
         self.kernel = empty((out_channels, in_channels, *kernel_size)).double()
         self.xavier_init()
 
-        # initialize bias
-        self.bias = empty(out_channels).double().fill_(0) if bias else None
 
         # initialize gradient vectors
         self.dl_dw = empty(self.kernel.size()).double().fill_(0)
@@ -117,13 +118,8 @@ class Conv2d(Module):
             self.bias.uniform_(-bound, bound)
 
 
-    def add_padding(self, x, padding, stride=(1, 1)):
-        if stride != (1, 1):
-            tmp = empty(x.shape[0], x.shape[1], (x.shape[2] - 1) * stride[0] + 1,
-                        (x.shape[3] - 1) * stride[1] + 1).fill_(0).double()
-            tmp[:, :, 0::stride[0], 0::stride[1]] = x
-            x = tmp
-        if padding != 0:
+    def add_padding(self, x, padding):
+        if padding != (0, 0):
             shape = x.shape
             x_pad = empty(shape[0], shape[1], shape[2] + padding[0] * 2, shape[3] + padding[1] * 2).fill_(0)
             x_pad[:, :, padding[0]:-padding[0], padding[1]:-padding[1]] = x
