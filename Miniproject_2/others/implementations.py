@@ -1,6 +1,6 @@
 from torch import empty, cat, arange
 from torch.nn.functional import fold, unfold
-
+from math import sqrt
 
 # module skeleton
 class Module(object):
@@ -73,7 +73,8 @@ class Conv2d(Module):
             kernel_size = (kernel_size, kernel_size)
 
         # initialize weights
-        self.kernel = empty((out_channels, in_channels, *kernel_size)).double().fill_(1)
+        self.kernel = empty((out_channels, in_channels, *kernel_size)).double()
+        self.xavier_init()
 
         # initialize bias
         self.bias = empty(out_channels).double().fill_(0) if bias else None
@@ -92,6 +93,30 @@ class Conv2d(Module):
         if type(padding) is int:
             padding = (padding, padding)
         self.padding = padding
+
+    def xavier_init(self):
+        """
+            Xavier's initialization for convolutional layers
+        """
+        in_channels = self.kernel.shape[1]
+        out_channels = self.kernel.shape[0]
+
+        # fan_in = filter dimensions * in_channels (number of neurons affecting an output neuron)
+        fan_in = in_channels * self.kernel.shape[2] * self.kernel.shape[3]
+
+        # fan_out = filter dimensions * out_channels (number of neurons affected by an input neuron)
+        fan_out = out_channels * self.kernel.shape[2] * self.kernel.shape[3]
+
+        # compute Xavier's bound for the uniform distribution
+        bound = sqrt(2. / (fan_in + fan_out))
+
+        # initialize weights
+        self.kernel.uniform_(-bound, bound)
+
+        # initialize bias
+        if self.bias is not None:
+            self.bias.uniform_(-bound, bound)
+
 
     def add_padding(self, x, padding, stride=(1, 1)):
         if stride != (1, 1):
