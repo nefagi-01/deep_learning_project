@@ -1,6 +1,6 @@
 from torch import empty, cat, arange
 from torch.nn.functional import fold, unfold
-
+from math import sqrt
 
 # module skeleton
 class Module(object):
@@ -73,7 +73,8 @@ class Conv2d(Module):
             kernel_size = (kernel_size, kernel_size)
 
         # initialize weights
-        self.kernel = empty((out_channels, in_channels, *kernel_size)).double().fill_(1)
+        self.kernel = empty((out_channels, in_channels, *kernel_size)).double()
+        self.xavier_init()
 
         # initialize bias
         self.bias = empty(out_channels).double().fill_(0) if bias else None
@@ -92,8 +93,37 @@ class Conv2d(Module):
             padding = (padding, padding)
         self.padding = padding
 
-    def add_padding(self, x, padding):
-        if padding != (0, 0):
+    def xavier_init(self):
+        """
+            Xavier's initialization for convolutional layers
+        """
+        in_channels = self.kernel.shape[1]
+        out_channels = self.kernel.shape[0]
+
+        # fan_in = filter dimensions * in_channels (number of neurons affecting an output neuron)
+        fan_in = in_channels * self.kernel.shape[2] * self.kernel.shape[3]
+
+        # fan_out = filter dimensions * out_channels (number of neurons affected by an input neuron)
+        fan_out = out_channels * self.kernel.shape[2] * self.kernel.shape[3]
+
+        # compute Xavier's bound for the uniform distribution
+        bound = sqrt(2. / (fan_in + fan_out))
+
+        # initialize weights
+        self.kernel.uniform_(-bound, bound)
+
+        # initialize bias
+        if self.bias is not None:
+            self.bias.uniform_(-bound, bound)
+
+
+    def add_padding(self, x, padding, stride=(1, 1)):
+        if stride != (1, 1):
+            tmp = empty(x.shape[0], x.shape[1], (x.shape[2] - 1) * stride[0] + 1,
+                        (x.shape[3] - 1) * stride[1] + 1).fill_(0).double()
+            tmp[:, :, 0::stride[0], 0::stride[1]] = x
+            x = tmp
+        if padding != 0:
             shape = x.shape
             x_pad = empty(shape[0], shape[1], shape[2] + padding[0] * 2, shape[3] + padding[1] * 2).fill_(0)
             x_pad[:, :, padding[0]:-padding[0], padding[1]:-padding[1]] = x
@@ -265,11 +295,41 @@ class MSE(Module):
 
 class SGD:
     # parameters: the parameters of the Sequential module
-    def __init__(self, parameters, learning_rate):
-        self.param = parameters  # [ p.shallow() for tup in parameters for p in tup ]
-        self.lr = learning_rate
+    def __init__(self, parameters, lr, momentum=0, dampening=0, weight_decay=0, nesterov=False):
+        self.parameters = parameters
+        self.lr = lr
+        self.momentum = momentum
+        self.dampening = dampening
+        self.weight_decay = weight_decay
+        self.nesterov = nesterov
+        self.momentum_buffer_list = [None for _ in parameters]
 
     # performs a gradient step (SGD) for all parameters
     def step(self):
-        for (p, grad_p) in self.param:
-            p.sub_(self.lr * grad_p)
+        for i, param_tuple in enumerate(self.parameters):
+            param = param_tuple[0]
+            d_p = param_tuple[1]
+
+            if self.weight_decay != 0:
+                d_p = d_p.add(param, alpha=self.weight_decay)
+
+            if self.momentum != 0:
+                buf = self.momentum_buffer_list[i]
+
+                if buf is None:
+                    buf = d_p.clone()
+                    self.momentum_buffer_list[i] = buf
+                else:
+                    buf.mul_(self.momentum).add_(d_p, alpha=1 - self.dampening)
+
+                if self.nesterov:
+                    d_p = d_p.add(buf, alpha=self.momentum)
+                else:
+                    d_p = buf
+
+            # Do final update
+            param_tuple[0].add_(d_p, alpha=-self.lr)
+
+    def zero_grad(self):
+        for param_tuple in self.parameters:
+            param_tuple[1].fill_(0)
