@@ -245,11 +245,41 @@ class MSE(Module):
 
 class SGD:
     # parameters: the parameters of the Sequential module
-    def __init__(self, parameters, learning_rate):
-        self.param = parameters  # [ p.shallow() for tup in parameters for p in tup ]
-        self.lr = learning_rate
+    def __init__(self, parameters, lr, momentum=0, dampening=0, weight_decay=0, nesterov=False):
+        self.parameters = parameters
+        self.lr = lr
+        self.momentum = momentum
+        self.dampening = dampening
+        self.weight_decay = weight_decay
+        self.nesterov = nesterov
+        self.momentum_buffer_list = [None for _ in parameters]
 
     # performs a gradient step (SGD) for all parameters
     def step(self):
-        for (p, grad_p) in self.param:
-            p.sub_(self.lr * grad_p)
+        for i, param_tuple in enumerate(self.parameters):
+            param = param_tuple[0]
+            d_p = param_tuple[1]
+
+            if self.weight_decay != 0:
+                d_p = d_p.add(param, alpha=self.weight_decay)
+
+            if self.momentum != 0:
+                buf = self.momentum_buffer_list[i]
+
+                if buf is None:
+                    buf = d_p.clone()
+                    self.momentum_buffer_list[i] = buf
+                else:
+                    buf.mul_(self.momentum).add_(d_p, alpha=1 - self.dampening)
+
+                if self.nesterov:
+                    d_p = d_p.add(buf, alpha=self.momentum)
+                else:
+                    d_p = buf
+
+            # Do final update
+            param_tuple[0].add_(d_p, alpha=-self.lr)
+
+    def zero_grad(self):
+        for param_tuple in self.parameters:
+            param_tuple[1].fill_(0)
