@@ -98,6 +98,11 @@ class Conv2d(Module):
                         (x.shape[3] - 1) * stride[1] + 1).fill_(0)
             tmp[:, :, 0::stride[0], 0::stride[1]] = x
             x = tmp
+            shape = x.shape
+            x_pad = empty(shape[0], shape[1], shape[2] + 1 * 2, shape[3] +1 * 2).fill_(0)
+            x_pad[:, :, 1:-1, 1:-1] = x
+            x = x_pad
+
         if padding != (0, 0):
             shape = x.shape
             x_pad = empty(shape[0], shape[1], shape[2] + padding[0] * 2, shape[3] + padding[1] * 2).fill_(0)
@@ -138,7 +143,10 @@ class Conv2d(Module):
         dl_dout_pad = self.add_padding(dl_dout, (1, 1), self.stride)
         # compute backward by convolution
         dl_dx = self.apply_conv(dl_dout_pad, kernel)
+        print(dl_dout[0][0])
+        print(dl_dout_pad[0][0])
         # shape may be different because kernel wasn't applied entirely on self.x (e.g: x_shape = (1,3,5,5), kernel_shape = (2,3,2,2), stride = 2 , padding = 0)
+        print("\nkernel",kernel.shape,"\ndl_dout", dl_dout.shape,"\ndl_dout_pad", dl_dout_pad.shape,"\ndl_dx", dl_dx.shape)
         if dl_dx.shape != self.x.shape:
             dl_dx_pad = empty(self.x.shape).fill_(0)
             dl_dx_pad[:, :, :dl_dx.shape[-2], :dl_dx.shape[-1]] = dl_dx
