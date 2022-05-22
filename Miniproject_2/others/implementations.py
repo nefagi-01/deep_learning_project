@@ -112,10 +112,12 @@ class Conv2d(Module):
 
         # initialize weights
         self.kernel.uniform_(-bound, bound)
+        self.kernel = self.kernel.double()
 
         # initialize bias
         if self.bias is not None:
             self.bias.uniform_(-bound, bound)
+            self.bias = self.bias.double()
 
 
     def add_padding(self, x, padding):
@@ -129,7 +131,7 @@ class Conv2d(Module):
 
     def apply_conv(self, x, kernel, stride=(1, 1), include_bias=False):
         # compute output
-        x_unfolded = unfold(x, kernel.shape[-2:], stride=stride)
+        x_unfolded = unfold(x, kernel.shape[-2:], stride=stride).double()
         conv_output = x_unfolded.transpose(1, 2).matmul(kernel.reshape(kernel.shape[0], -1).t()).transpose(1, 2) + (self.bias.view(1, -1, 1) if self.bias is not None and include_bias else 0)
         out = fold(conv_output, ((x.shape[2] - kernel.shape[2]) // stride[0] + 1, (x.shape[3] - kernel.shape[3]) // stride[1] + 1), (1, 1))
         return out
@@ -157,7 +159,7 @@ class Conv2d(Module):
             x = self.x
         
         # compute gradient with respect to weights (kernel)
-        self.dl_dw += (self.apply_conv(x.transpose(0, 1), self.delation(dl_dout).transpose(0, 1))).transpose(0, 1)
+        self.dl_dw += (self.apply_conv(x.transpose(0, 1), self.delation(dl_dout).transpose(0, 1).double())).transpose(0, 1)
       
         # compute gradient with respect to bias
         if self.bias is not None:
