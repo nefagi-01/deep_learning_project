@@ -77,7 +77,7 @@ class Conv2d(Module):
 
         # initialize weights
         self.kernel = empty((out_channels, in_channels, *kernel_size)).double().fill_(1)
-        # self.xavier_init()
+        self.xavier_init()
 
 
         # initialize gradient vectors
@@ -157,11 +157,11 @@ class Conv2d(Module):
             x = self.x
         
         # compute gradient with respect to weights (kernel)
-        self.dl_dw = (self.apply_conv(x.transpose(0, 1), self.delation(dl_dout).transpose(0, 1))).transpose(0, 1)
+        self.dl_dw += (self.apply_conv(x.transpose(0, 1), self.delation(dl_dout).transpose(0, 1))).transpose(0, 1)
       
         # compute gradient with respect to bias
         if self.bias is not None:
-            self.dl_db = dl_dout.sum(dim=(dl_dout.dim()-4, dl_dout.dim() - 2, dl_dout.dim() - 1))
+            self.dl_db += dl_dout.sum(dim=(dl_dout.dim()-4, dl_dout.dim() - 2, dl_dout.dim() - 1))
 
         # compute gradient with respect to input
         # rotate kernel by 180 and transpose
