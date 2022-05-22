@@ -18,7 +18,7 @@ class Model:
             Conv2d(32, 8, kernel_size=3, stride=1, padding=1),
             ReLU(),
             NearestUpsampling(scale_factor=2),
-            Conv2d(8, 1, kernel_size=3, stride=1, padding=1),
+            Conv2d(8, 3, kernel_size=3, stride=1, padding=1),
             Sigmoid()
         )
         self.optimizer = SGD(self.model.param(), lr=1e-3, momentum=0.9, nesterov=False)
