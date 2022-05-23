@@ -269,7 +269,8 @@ class MSE(Module):
         self.error = None
 
     def forward(self, preds, labels):
-        self.error = (preds - labels) / preds.size().numel()
+        dimensions = preds.size().numel()
+        self.error = (preds - labels) / dimensions
         return (preds - labels).pow(2).mean()
 
     def backward(self):
