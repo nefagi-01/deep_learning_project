@@ -36,16 +36,15 @@ class NearestUpsampling(Module):
 
     def rescale(self, x):
         shape = x.size()
-        x = x.view(shape[0], shape[1], shape[2] * shape[3], 1)
-        ups1 = x
+        tmp = x.view(shape[0], shape[1], shape[2] * shape[3], 1)
+        ups1 = x.view(shape[0], shape[1], shape[2] * shape[3], 1)
         for i in range(self.scale_factor - 1):
-            ups1 = cat((ups1, x), 3)
+            ups1 = cat((ups1, tmp), 3)
         ups1 = ups1.view(shape[0], shape[1], shape[2], self.scale_factor * shape[3])
         ups2 = ups1
         for i in range(self.scale_factor - 1):
             ups2 = cat((ups2, ups1), 3)
         ups2 = ups2.view(shape[0], shape[1], shape[2] * self.scale_factor, shape[3] * self.scale_factor)
-        
         return ups2
 
     def forward(self, x):
@@ -72,7 +71,7 @@ class Conv2d(Module):
         self.x = None
         if type(kernel_size) is int:
             kernel_size = (kernel_size, kernel_size)
-
+        
         # initialize weights and bias
         self.bias = empty(out_channels).double() if bias else None
         self.kernel = empty((out_channels, in_channels, *kernel_size)).double()
@@ -137,7 +136,7 @@ class Conv2d(Module):
 
     def forward(self, x):
         # save input for backward pass
-        self.x = self.add_padding(x, self.padding).double()
+        self.x = self.add_padding(x.clone(), self.padding).double()
         return self.apply_conv(self.x, self.kernel, self.stride, include_bias=self.bias is not None)
 
     def delation(self, x):
@@ -186,11 +185,10 @@ class Conv2d(Module):
         #remove padding from dl_dx
         if self.padding != (0, 0):
             dl_dx = dl_dx[:, :, self.padding[-2]:-self.padding[-2], self.padding[-1]:-self.padding[-1]]
-
         return dl_dx
 
     def param(self):
-        return [(self.kernel, self.dl_dw), (self.bias, self.dl_db)]
+        return [[self.kernel, self.dl_dw], [self.bias, self.dl_db]] if self.bias is not None else [[self.kernel, self.dl_dw]]
 
     def zero_grad(self):
         self.dl_dw.fill_(0)
@@ -204,7 +202,8 @@ class Sigmoid(Module):
 
     def forward(self, x):
         self.x = x.clone()
-        return (1 + (-self.x).exp()).pow(-1)
+        temp = (1 + (-self.x).exp()).pow(-1)
+        return temp
 
     def backward(self, dl_dout):
         sig = (1 + (-self.x).exp()).pow(-1)
@@ -221,13 +220,11 @@ class ReLU(Module):
     # x_: the tensor outputed by the current layer
     def forward(self, x):
         self.x = x.clone()
-        x[x < 0] = 0
-        return x
+        temp = x * (x > 0)
+        return temp
 
     def backward(self, dl_dout):
-        tensor = self.x.clone()
-        tensor[self.x > 0] = 1
-        tensor[self.x < 0] = 0
+        tensor = (self.x > 0).double()
 
         return dl_dout * tensor
 
@@ -245,22 +242,14 @@ class Sequential(Module):
     # x_: the x data is a minibatch whose columns are features and lines are samples
     def forward(self, x_):
         x = x_
-        # print(self.modules[-2].kernel)
-        # print("\nbefore:")
-        # print(x.sum())
         for module in self.modules:
             x = module.forward(x)
-        # print("\nafter:")
-        # print(x.sum())
-
         return x
 
     def backward(self, gradwrtoutput):
         x = gradwrtoutput
         for module in reversed(self.modules):
             x = module.backward(x)
-        # print("\ndl_dx:")
-        # print(x.sum())
         return x
 
     # returns a flatened list of each module's parameters
@@ -280,7 +269,7 @@ class MSE(Module):
         self.error = None
 
     def forward(self, preds, labels):
-        self.error = (preds - labels) / (preds.shape[0]*preds.shape[1]*preds.shape[2]*preds.shape[3])
+        self.error = (preds - labels) / preds.size().numel()
         return (preds - labels).pow(2).mean()
 
     def backward(self):
