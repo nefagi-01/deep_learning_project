@@ -139,7 +139,7 @@ class Conv2d(Module):
         self.x = self.add_padding(x.clone(), self.padding)
         return self.apply_conv(self.x, self.kernel, self.stride, include_bias=self.bias is not None)
 
-    def delation(self, x):
+    def dilation(self, x):
         if self.stride != (1, 1):
             tmp = empty(x.shape[0], x.shape[1], (x.shape[2] - 1) * self.stride[0] + 1,
                         (x.shape[3] - 1) * self.stride[1] + 1).fill_(0)
@@ -157,18 +157,18 @@ class Conv2d(Module):
             x = self.x
         
         # compute gradient with respect to weights (kernel)
-        self.dl_dw += (self.apply_conv(x.transpose(0, 1), self.delation(dl_dout).transpose(0, 1))).transpose(0, 1)
+        self.dl_dw = (self.apply_conv(x.transpose(0, 1), self.dilation(dl_dout).transpose(0, 1))).transpose(0, 1)
       
         # compute gradient with respect to bias
         if self.bias is not None:
-            self.dl_db += dl_dout.sum(dim=(dl_dout.dim()-4, dl_dout.dim() - 2, dl_dout.dim() - 1))
+            self.dl_db = dl_dout.sum(dim=(dl_dout.dim()-4, dl_dout.dim() - 2, dl_dout.dim() - 1))
 
         # compute gradient with respect to input
         # rotate kernel by 180 and transpose
         kernel = self.kernel.flip(self.kernel.dim() - 2, self.kernel.dim() - 1)
         kernel = kernel.transpose(0, 1)
          
-        dl_dout = self.delation(dl_dout)
+        dl_dout = self.dilation(dl_dout)
 
         # add padding to dl_dout
         dl_dout_pad = self.add_padding(dl_dout, ((x.shape[-2] - dl_dout.shape[-2]), (x.shape[-1] - dl_dout.shape[-1])))
@@ -190,10 +190,6 @@ class Conv2d(Module):
     def param(self):
         return [[self.kernel, self.dl_dw], [self.bias, self.dl_db]] if self.bias is not None else [[self.kernel, self.dl_dw]]
 
-    def zero_grad(self):
-        self.dl_dw.fill_(0)
-        if self.bias is not None:
-            self.dl_db.fill_(0)
 
 
 class Sigmoid(Module):
@@ -208,9 +204,6 @@ class Sigmoid(Module):
     def backward(self, dl_dout):
         sig = (1 + (-self.x).exp()).pow(-1)
         return sig * (1 - sig) * dl_dout
-
-    def zero_grad(self):
-        pass
 
 
 class ReLU(Module):
@@ -230,9 +223,6 @@ class ReLU(Module):
 
     def param(self):
         return []
-
-    def zero_grad(self):
-        pass
 
 
 class Sequential(Module):
@@ -258,11 +248,6 @@ class Sequential(Module):
     def param(self):
         return [p for module in self.modules for p in module.param()]
 
-    # sets the gradient of each layer to zero before the next batch can go through the network
-    def zero_grad(self):
-        for module in self.modules:
-            module.zero_grad()
-
 
 class MSE(Module):
     def __init__(self):
@@ -278,9 +263,6 @@ class MSE(Module):
 
     def param(self):
         return []
-
-    def zero_grad(self):
-        pass
 
 
 class SGD:
@@ -319,7 +301,3 @@ class SGD:
 
             # Do final update
             param_tuple[0].add_(d_p, alpha=-self.lr)
-
-    def zero_grad(self):
-        for param_tuple in self.parameters:
-            param_tuple[1].fill_(0)
