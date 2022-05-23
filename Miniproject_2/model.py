@@ -10,20 +10,20 @@ class Model:
     def __init__(self) -> None:
         # instantiate model + optimizer + loss function + any other stuff you need
         self.model = Sequential(
-            Conv2d(3, 32, kernel_size=2, stride=2, padding=0, bias=False),
+            Conv2d(3, 32, kernel_size=2, stride=2, padding=0, bias=True),
             ReLU(),
-            Conv2d(32, 128, kernel_size=2, stride=2, padding=0, bias=False),
-            ReLU(),
-            NearestUpsampling(scale_factor=2),
-            Conv2d(128, 32, kernel_size=3, stride=1, padding=1, bias=False),
+            Conv2d(32, 64, kernel_size=2, stride=2, padding=0, bias=True),
             ReLU(),
             NearestUpsampling(scale_factor=2),
-            Conv2d(32, 3, kernel_size=3, stride=1, padding=1, bias=False),
+            Conv2d(64, 32, kernel_size=3, stride=1, padding=1, bias=True),
+            ReLU(),
+            NearestUpsampling(scale_factor=2),
+            Conv2d(32, 3, kernel_size=3, stride=1, padding=1, bias=True),
             Sigmoid()
         )
-        self.optimizer = SGD(self.model.param(), lr=1e-2, nesterov=False)
+        self.optimizer = SGD(self.model.param(), lr=1e-2, momentum=0.9, nesterov=True)
         self.loss = MSE()
-        self.batch_size = 100
+        self.batch_size = 4
 
     def load_pretrained_model(self) -> None:
         # This loads the parameters saved in bestmodel.pth into the model
