@@ -72,11 +72,9 @@ class Conv2d(Module):
         if type(kernel_size) is int:
             kernel_size = (kernel_size, kernel_size)
         
-        # initialize bias
-        self.bias = empty(out_channels).double().fill_(0) if bias else None
-
-        # initialize weights
-        self.kernel = empty((out_channels, in_channels, *kernel_size)).double().fill_(1)
+        # initialize weights and bias
+        self.bias = empty(out_channels).double() if bias else None
+        self.kernel = empty((out_channels, in_channels, *kernel_size)).double()
         self.xavier_init()
 
 
@@ -139,7 +137,7 @@ class Conv2d(Module):
     def forward(self, x):
         # save input for backward pass
         self.x = self.add_padding(x, self.padding).double()
-        return self.apply_conv(self.x, self.kernel, self.stride, include_bias=True)
+        return self.apply_conv(self.x, self.kernel, self.stride, include_bias=self.bias is not None)
 
     def delation(self, x):
         if self.stride != (1, 1):
@@ -187,11 +185,10 @@ class Conv2d(Module):
         #remove padding from dl_dx
         if self.padding != (0, 0):
             dl_dx = dl_dx[:, :, self.padding[-2]:-self.padding[-2], self.padding[-1]:-self.padding[-1]]
-
         return dl_dx
 
     def param(self):
-        return [(self.kernel, self.dl_dw), (self.bias, self.dl_db)]
+        return [[self.kernel, self.dl_dw], [self.bias, self.dl_db]] if self.bias is not None else [[self.kernel, self.dl_dw]]
 
     def zero_grad(self):
         self.dl_dw.fill_(0)
@@ -205,7 +202,8 @@ class Sigmoid(Module):
 
     def forward(self, x):
         self.x = x.clone()
-        return (1 + (-self.x).exp()).pow(-1)
+        temp = (1 + (-self.x).exp()).pow(-1)
+        return temp
 
     def backward(self, dl_dout):
         sig = (1 + (-self.x).exp()).pow(-1)
@@ -222,13 +220,11 @@ class ReLU(Module):
     # x_: the tensor outputed by the current layer
     def forward(self, x):
         self.x = x.clone()
-        x[x < 0] = 0
-        return x
+        temp = x * (x > 0)
+        return temp
 
     def backward(self, dl_dout):
-        tensor = self.x.clone()
-        tensor[self.x > 0] = 1
-        tensor[self.x < 0] = 0
+        tensor = (self.x > 0).double()
 
         return dl_dout * tensor
 
@@ -273,8 +269,8 @@ class MSE(Module):
         self.error = None
 
     def forward(self, preds, labels):
-        self.error = preds - labels
-        return self.error.pow(2).sum()
+        self.error = (preds - labels) / preds.shape[0]
+        return (preds - labels).pow(2).mean()
 
     def backward(self):
         return 2 * self.error
