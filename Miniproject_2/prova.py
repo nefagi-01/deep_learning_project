@@ -4,6 +4,7 @@ import numpy as np
 import itertools
 import pickle
 
+
 # HELPER FUNCTIONS
 
 def sample(tensor1, tensor2, k):
@@ -16,25 +17,32 @@ def upsampling_kernel_to_padding(kernel_size):
     assert kernel_size % 2 == 1
     return (kernel_size - 1) // 2
 
+
 def downsampling_kernel_to_padding(kernel_size):
     assert kernel_size % 2 == 0
     return (kernel_size - 2) // 2
 
+
 # MODEL CLASS
 
 class TestModel:
-    def __init__(self, shallow_channels, deep_channels, lr, momentum, nesterov, batch_size, downsampling_kernel_size, upsampling_kernel_size) -> None:
+    def __init__(self, shallow_channels, deep_channels, lr, momentum, nesterov, batch_size, downsampling_kernel_size,
+                 upsampling_kernel_size) -> None:
         # instantiate model + optimizer + loss function + any other stuff you need
         self.model = Sequential(
-            Conv2d(3, shallow_channels, kernel_size=downsampling_kernel_size, stride=2, padding=downsampling_kernel_to_padding(downsampling_kernel_size), bias=True),
+            Conv2d(3, shallow_channels, kernel_size=downsampling_kernel_size, stride=2,
+                   padding=downsampling_kernel_to_padding(downsampling_kernel_size), bias=True),
             ReLU(),
-            Conv2d(shallow_channels, deep_channels, kernel_size=downsampling_kernel_size, stride=2, padding=downsampling_kernel_to_padding(downsampling_kernel_size), bias=True),
+            Conv2d(shallow_channels, deep_channels, kernel_size=downsampling_kernel_size, stride=2,
+                   padding=downsampling_kernel_to_padding(downsampling_kernel_size), bias=True),
             ReLU(),
             NearestUpsampling(scale_factor=2),
-            Conv2d(deep_channels, shallow_channels, kernel_size=upsampling_kernel_size, stride=1, padding=upsampling_kernel_to_padding(upsampling_kernel_size), bias=True),
+            Conv2d(deep_channels, shallow_channels, kernel_size=upsampling_kernel_size, stride=1,
+                   padding=upsampling_kernel_to_padding(upsampling_kernel_size), bias=True),
             ReLU(),
             NearestUpsampling(scale_factor=2),
-            Conv2d(shallow_channels, 3, kernel_size=upsampling_kernel_size, stride=1, padding=upsampling_kernel_to_padding(upsampling_kernel_size), bias=True),
+            Conv2d(shallow_channels, 3, kernel_size=upsampling_kernel_size, stride=1,
+                   padding=upsampling_kernel_to_padding(upsampling_kernel_size), bias=True),
             Sigmoid()
         )
         self.optimizer = SGD(self.model.param(), lr=lr, momentum=momentum, nesterov=nesterov)
@@ -63,7 +71,7 @@ class TestModel:
                 self.optimizer.zero_grad()
                 self.model.backward(self.loss.backward())
                 self.optimizer.step()
-                self.optimizer.zero_grad()
+
         inp, target = train_input, train_target
         output = self.model.forward(inp)
         loss = self.loss.forward(preds=output, labels=target)
@@ -78,28 +86,18 @@ class TestModel:
         return self.model.forward(test_input) * 255.0
 
 
-
-
-
-
 # Hyper parameters for tuning
-# hidden_channels = [(8, 32), (16, 32), (16, 64), (32, 64), (32, 128)]
-# lr_list = [1e-3, 1e-2, 5e-2]
-# momentum_list = [0., 0.9]
-# nesterov_list = [False, True]
-# batch_size_list = [4, 16, 64]
-# downsampling_kernel_size_list = [2, 4]
-# upsampling_kernel_size_list = [3, 5]
+hidden_channels = [(8, 32), (16, 32), (16, 64), (32, 64)]
+lr_list = [1e-3, 1e-2, 5e-2]
+momentum_list = [0., 0.9]
+nesterov_list = [False, True]
+batch_size_list = [4, 16, 64]
+downsampling_kernel_size_list = [2, 4]
+upsampling_kernel_size_list = [3, 5]
 
-hidden_channels = [(32, 128)]
-lr_list = [1e-2]
-momentum_list = [0.9]
-nesterov_list = [True]
-batch_size_list = [4]
-downsampling_kernel_size_list = [2]
-upsampling_kernel_size_list = [3]
-
-hyperparameters_combinations = list(itertools.product(hidden_channels, lr_list, momentum_list, nesterov_list, batch_size_list, downsampling_kernel_size_list, upsampling_kernel_size_list))
+hyperparameters_combinations = list(
+    itertools.product(hidden_channels, lr_list, momentum_list, nesterov_list, batch_size_list,
+                      downsampling_kernel_size_list, upsampling_kernel_size_list))
 print(f"Number of combinations: {len(hyperparameters_combinations)}")
 
 # Loading data
@@ -115,10 +113,12 @@ samples = 5000
 s1, s2 = sample(noisy_imgs_1, noisy_imgs_2, samples)
 
 results = dict()
-for (shallow_channels, deep_channels), lr, momentum, nesterov, batch_size, downsampling_kernel_size, upsampling_kernel_size in hyperparameters_combinations:
+for (shallow_channels,
+     deep_channels), lr, momentum, nesterov, batch_size, downsampling_kernel_size, upsampling_kernel_size in hyperparameters_combinations:
     epochs = 10
     description = f"shallow_channels={shallow_channels},deep_channels={deep_channels},lr={lr},momentum={momentum},nesterov={nesterov},batch_size={batch_size},downsampling_kernel_size={downsampling_kernel_size},upsampling_kernel_size={upsampling_kernel_size}"
-    m = TestModel(shallow_channels, deep_channels, lr, momentum, nesterov, batch_size, downsampling_kernel_size, upsampling_kernel_size)
+    m = TestModel(shallow_channels, deep_channels, lr, momentum, nesterov, batch_size, downsampling_kernel_size,
+                  upsampling_kernel_size)
     m.train(s1, s2, epochs)
     psnr = compute_psnr(m.predict(test) / 255., truth)
     print(description + f",PSNR={psnr.item()}")

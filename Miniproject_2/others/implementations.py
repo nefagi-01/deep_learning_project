@@ -2,6 +2,7 @@ from torch import empty, cat, arange
 from torch.nn.functional import fold, unfold
 from math import sqrt
 
+
 # module skeleton
 class Module(object):
     def forward(self, *x_):
@@ -71,12 +72,11 @@ class Conv2d(Module):
         self.x = None
         if type(kernel_size) is int:
             kernel_size = (kernel_size, kernel_size)
-        
+
         # initialize weights and bias
         self.bias = empty(out_channels) if bias else None
         self.kernel = empty((out_channels, in_channels, *kernel_size))
         self.xavier_init()
-
 
         # initialize gradient vectors
         self.dl_dw = empty(self.kernel.size()).fill_(0)
@@ -117,7 +117,6 @@ class Conv2d(Module):
             self.bias.uniform_(-bound, bound)
             self.bias = self.bias
 
-
     def add_padding(self, x, padding):
         if padding != (0, 0):
             shape = x.shape
@@ -130,8 +129,11 @@ class Conv2d(Module):
     def apply_conv(self, x, kernel, stride=(1, 1), include_bias=False):
         # compute output
         x_unfolded = unfold(x, kernel.shape[-2:], stride=stride)
-        conv_output = x_unfolded.transpose(1, 2).matmul(kernel.reshape(kernel.shape[0], -1).t()).transpose(1, 2) + (self.bias.view(1, -1, 1) if self.bias is not None and include_bias else 0)
-        out = fold(conv_output, ((x.shape[2] - kernel.shape[2]) // stride[0] + 1, (x.shape[3] - kernel.shape[3]) // stride[1] + 1), (1, 1))
+        conv_output = x_unfolded.transpose(1, 2).matmul(kernel.reshape(kernel.shape[0], -1).t()).transpose(1, 2) + (
+            self.bias.view(1, -1, 1) if self.bias is not None and include_bias else 0)
+        out = fold(conv_output,
+                   ((x.shape[2] - kernel.shape[2]) // stride[0] + 1, (x.shape[3] - kernel.shape[3]) // stride[1] + 1),
+                   (1, 1))
         return out
 
     def forward(self, x):
@@ -139,7 +141,7 @@ class Conv2d(Module):
         self.x = self.add_padding(x.clone(), self.padding)
         return self.apply_conv(self.x, self.kernel, self.stride, include_bias=self.bias is not None)
 
-    def delation(self, x):
+    def dilation(self, x):
         if self.stride != (1, 1):
             tmp = empty(x.shape[0], x.shape[1], (x.shape[2] - 1) * self.stride[0] + 1,
                         (x.shape[3] - 1) * self.stride[1] + 1).fill_(0)
@@ -148,27 +150,28 @@ class Conv2d(Module):
         return x
 
     def backward(self, dl_dout):
-        #compute size of not covered part of self.x
-        not_covered = (self.x.shape[-2] - (self.stride[-2] * (dl_dout.shape[-2] - 1) + self.kernel.shape[-2]), self.x.shape[-1] - (self.stride[-1] * (dl_dout.shape[-1] - 1) + self.kernel.shape[-1]))
-        
-        if not_covered != (0,0):
-            x = self.x[:,:,:-not_covered[-2],:-not_covered[-1]]
+        # compute size of not covered part of self.x
+        not_covered = (self.x.shape[-2] - (self.stride[-2] * (dl_dout.shape[-2] - 1) + self.kernel.shape[-2]),
+                       self.x.shape[-1] - (self.stride[-1] * (dl_dout.shape[-1] - 1) + self.kernel.shape[-1]))
+
+        if not_covered != (0, 0):
+            x = self.x[:, :, :-not_covered[-2], :-not_covered[-1]]
         else:
             x = self.x
-        
+
         # compute gradient with respect to weights (kernel)
-        self.dl_dw += (self.apply_conv(x.transpose(0, 1), self.delation(dl_dout).transpose(0, 1))).transpose(0, 1)
-      
+        self.dl_dw += (self.apply_conv(x.transpose(0, 1), self.dilation(dl_dout).transpose(0, 1))).transpose(0, 1)
+
         # compute gradient with respect to bias
         if self.bias is not None:
-            self.dl_db += dl_dout.sum(dim=(dl_dout.dim()-4, dl_dout.dim() - 2, dl_dout.dim() - 1))
+            self.dl_db += dl_dout.sum(dim=(dl_dout.dim() - 4, dl_dout.dim() - 2, dl_dout.dim() - 1))
 
         # compute gradient with respect to input
         # rotate kernel by 180 and transpose
         kernel = self.kernel.flip(self.kernel.dim() - 2, self.kernel.dim() - 1)
         kernel = kernel.transpose(0, 1)
-         
-        dl_dout = self.delation(dl_dout)
+
+        dl_dout = self.dilation(dl_dout)
 
         # add padding to dl_dout
         dl_dout_pad = self.add_padding(dl_dout, ((x.shape[-2] - dl_dout.shape[-2]), (x.shape[-1] - dl_dout.shape[-1])))
@@ -182,13 +185,14 @@ class Conv2d(Module):
             dl_dx_pad[:, :, :-not_covered[-2], :-not_covered[-1]] = dl_dx
             dl_dx = dl_dx_pad
 
-        #remove padding from dl_dx
+        # remove padding from dl_dx
         if self.padding != (0, 0):
             dl_dx = dl_dx[:, :, self.padding[-2]:-self.padding[-2], self.padding[-1]:-self.padding[-1]]
         return dl_dx
 
     def param(self):
-        return [[self.kernel, self.dl_dw], [self.bias, self.dl_db]] if self.bias is not None else [[self.kernel, self.dl_dw]]
+        return [[self.kernel, self.dl_dw], [self.bias, self.dl_db]] if self.bias is not None else [
+            [self.kernel, self.dl_dw]]
 
     def zero_grad(self):
         self.dl_dw.fill_(0)

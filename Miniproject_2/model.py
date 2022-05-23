@@ -45,7 +45,6 @@ class Model:
                 self.optimizer.zero_grad()
                 self.model.backward(self.loss.backward())
                 self.optimizer.step()
-                self.optimizer.zero_grad()
         inp, target = train_input, train_target
         output = self.model.forward(inp)
         loss = self.loss.forward(preds=output, labels=target)
