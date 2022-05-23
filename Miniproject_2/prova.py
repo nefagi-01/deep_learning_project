@@ -83,13 +83,21 @@ class TestModel:
 
 
 # Hyper parameters for tuning
-hidden_channels = [(8, 16), (8, 32), (16, 32), (16, 64), (32, 64), (32, 128)]
-lr_list = [1e-2, 5e-2]
-momentum_list = [0., 0.9]
+# hidden_channels = [(8, 32), (16, 32), (16, 64), (32, 64), (32, 128)]
+# lr_list = [1e-3, 1e-2, 5e-2]
+# momentum_list = [0., 0.9]
+# nesterov_list = [False, True]
+# batch_size_list = [4, 16, 64]
+# downsampling_kernel_size_list = [2, 4]
+# upsampling_kernel_size_list = [3, 5]
+
+hidden_channels = [(32, 128)]
+lr_list = [1e-2]
+momentum_list = [0.9]
 nesterov_list = [True]
-batch_size_list = [4, 16, 64, 128]
-downsampling_kernel_size_list = [2, 4, 8]
-upsampling_kernel_size_list = [3, 5, 7]
+batch_size_list = [4]
+downsampling_kernel_size_list = [2]
+upsampling_kernel_size_list = [3]
 
 hyperparameters_combinations = list(itertools.product(hidden_channels, lr_list, momentum_list, nesterov_list, batch_size_list, downsampling_kernel_size_list, upsampling_kernel_size_list))
 print(f"Number of combinations: {len(hyperparameters_combinations)}")
