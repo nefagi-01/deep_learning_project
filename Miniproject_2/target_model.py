@@ -45,7 +45,7 @@ class Model:
             for inp, target in zip(train_input.split(self.batch_size), train_target.split(self.batch_size)):
                 output = self.model(inp)
                 loss = self.loss(output, target)
-                self.model.zero_grad()
+                self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
         inp, target = train_input, train_target
@@ -57,4 +57,4 @@ class Model:
         #: test˙input : tensor of size (N1 , C, H, W) that has to be denoised by the trained or the loaded network .
         #: returns a tensor of the size (N1 , C, H, W)
         # test input in range [0, 255], output in range [0, 255]
-        return self.model.forward(test_input) * 255.0
+        return self.model(test_input) * 255.0

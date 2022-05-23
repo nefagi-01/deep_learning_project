@@ -12,9 +12,9 @@ def sample(tensor1, tensor2, k):
 path_train = '../data/train_data.pkl'
 path_val = '../data/val_data.pkl'
 noisy_imgs_1, noisy_imgs_2 = torch.load(path_train)
-noisy_imgs_1, noisy_imgs_2 = noisy_imgs_1.double(), noisy_imgs_2.double()
+noisy_imgs_1, noisy_imgs_2 = noisy_imgs_1.float(), noisy_imgs_2.float()
 test, truth = torch.load(path_val)
-test, truth = test.double(), truth.double()
+test, truth = test.float(), truth.float()
 
 s1, s2 = sample(noisy_imgs_1, noisy_imgs_2, 1000)
 t1, t2 = sample(test, truth, 1000)

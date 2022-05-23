@@ -73,14 +73,14 @@ class Conv2d(Module):
             kernel_size = (kernel_size, kernel_size)
         
         # initialize weights and bias
-        self.bias = empty(out_channels).double() if bias else None
-        self.kernel = empty((out_channels, in_channels, *kernel_size)).double()
+        self.bias = empty(out_channels) if bias else None
+        self.kernel = empty((out_channels, in_channels, *kernel_size))
         self.xavier_init()
 
 
         # initialize gradient vectors
-        self.dl_dw = empty(self.kernel.size()).double().fill_(0)
-        self.dl_db = empty(out_channels).double().fill_(0) if bias else None
+        self.dl_dw = empty(self.kernel.size()).fill_(0)
+        self.dl_db = empty(out_channels).fill_(0) if bias else None
 
         # stride
         if type(stride) is int:
@@ -110,12 +110,12 @@ class Conv2d(Module):
 
         # initialize weights
         self.kernel.uniform_(-bound, bound)
-        self.kernel = self.kernel.double()
+        self.kernel = self.kernel
 
         # initialize bias
         if self.bias is not None:
             self.bias.uniform_(-bound, bound)
-            self.bias = self.bias.double()
+            self.bias = self.bias
 
 
     def add_padding(self, x, padding):
@@ -129,14 +129,14 @@ class Conv2d(Module):
 
     def apply_conv(self, x, kernel, stride=(1, 1), include_bias=False):
         # compute output
-        x_unfolded = unfold(x, kernel.shape[-2:], stride=stride).double()
+        x_unfolded = unfold(x, kernel.shape[-2:], stride=stride)
         conv_output = x_unfolded.transpose(1, 2).matmul(kernel.reshape(kernel.shape[0], -1).t()).transpose(1, 2) + (self.bias.view(1, -1, 1) if self.bias is not None and include_bias else 0)
         out = fold(conv_output, ((x.shape[2] - kernel.shape[2]) // stride[0] + 1, (x.shape[3] - kernel.shape[3]) // stride[1] + 1), (1, 1))
         return out
 
     def forward(self, x):
         # save input for backward pass
-        self.x = self.add_padding(x.clone(), self.padding).double()
+        self.x = self.add_padding(x.clone(), self.padding)
         return self.apply_conv(self.x, self.kernel, self.stride, include_bias=self.bias is not None)
 
     def delation(self, x):
@@ -157,7 +157,7 @@ class Conv2d(Module):
             x = self.x
         
         # compute gradient with respect to weights (kernel)
-        self.dl_dw += (self.apply_conv(x.transpose(0, 1), self.delation(dl_dout).transpose(0, 1).double())).transpose(0, 1)
+        self.dl_dw += (self.apply_conv(x.transpose(0, 1), self.delation(dl_dout).transpose(0, 1))).transpose(0, 1)
       
         # compute gradient with respect to bias
         if self.bias is not None:
@@ -224,7 +224,7 @@ class ReLU(Module):
         return temp
 
     def backward(self, dl_dout):
-        tensor = (self.x > 0).double()
+        tensor = (self.x > 0)
 
         return dl_dout * tensor
 
