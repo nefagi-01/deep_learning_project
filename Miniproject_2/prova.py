@@ -88,7 +88,7 @@ class TestModel:
 
 # Hyper parameters for tuning
 hidden_channels = [(8, 32), (16, 32), (16, 64), (32, 64)]
-lr_list = [1e-3, 1e-2, 5e-2]
+lr_list = [5e-2]
 momentum_list = [0., 0.9]
 nesterov_list = [False, True]
 batch_size_list = [4, 16, 64]
@@ -108,7 +108,7 @@ noisy_imgs_1, noisy_imgs_2 = noisy_imgs_1.float(), noisy_imgs_2.float()
 test, truth = torch.load(path_val)
 test, truth = test.float(), truth.float() / 255.0
 
-samples = 5000
+samples = 1000
 
 s1, s2 = sample(noisy_imgs_1, noisy_imgs_2, samples)
 
@@ -122,7 +122,7 @@ for (shallow_channels,
     m.train(s1, s2, epochs)
     psnr = compute_psnr(m.predict(test) / 255., truth)
     print(description + f",PSNR={psnr.item()}")
-    results[description] = (psnr, m)
+    results[description] = psnr
 
 with open(r"results.pickle", "wb") as output_file:
     pickle.dump(results, output_file)
