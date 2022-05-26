@@ -3,6 +3,7 @@ from others.implementations import *
 import numpy as np
 import itertools
 import pickle
+import heapq
 
 
 # HELPER FUNCTIONS
@@ -87,35 +88,75 @@ class TestModel:
 
 
 # Hyper parameters for tuning
-hidden_channels = [(8, 32), (16, 32), (16, 64), (32, 64)]
-lr_list = [5e-2]
-momentum_list = [0., 0.9]
-nesterov_list = [False, True]
-batch_size_list = [4, 16, 64]
-downsampling_kernel_size_list = [2, 4]
-upsampling_kernel_size_list = [3, 5]
+# hidden_channels = [(8, 32), (16, 32), (16, 64), (32, 64)]
+# lr_list = [1e-3]
+# momentum_list = [0., 0.9]
+# nesterov_list = [False, True]
+# batch_size_list = [4, 16, 64]
+# downsampling_kernel_size_list = [2, 4]
+# upsampling_kernel_size_list = [3, 5]
 
-hyperparameters_combinations = list(
-    itertools.product(hidden_channels, lr_list, momentum_list, nesterov_list, batch_size_list,
-                      downsampling_kernel_size_list, upsampling_kernel_size_list))
-print(f"Number of combinations: {len(hyperparameters_combinations)}")
+# hyperparameters_combinations = list(
+#     itertools.product(hidden_channels, lr_list, momentum_list, nesterov_list, batch_size_list,
+#                       downsampling_kernel_size_list, upsampling_kernel_size_list))
+# print(f"Number of combinations: {len(hyperparameters_combinations)}")
+
+
+#TOP 30
+with open('./results1e3.pickle','rb') as f:
+    results1e3 = pickle.load(f)
+with open('./results5e2.pickle','rb') as f:
+    results5e2 = pickle.load(f)
+with open('./results1e2.pickle','rb') as f:
+    results1e2 = pickle.load(f)
+final = {**results1e2, **results5e2}
+final = {**final, **results1e3}
+top30 = heapq.nlargest(30, final.items(), key=lambda i: i[1])
+parameters = [[param.split('=')[1] for param in top[0].split(',')] for top in top30]
+
+
+
 
 # Loading data
-path_train = '../data/train_data.pkl'
-path_val = '../data/val_data.pkl'
+path_train = './data/train_data.pkl'
+path_val = './data/val_data.pkl'
 noisy_imgs_1, noisy_imgs_2 = torch.load(path_train)
 noisy_imgs_1, noisy_imgs_2 = noisy_imgs_1.float(), noisy_imgs_2.float()
 test, truth = torch.load(path_val)
 test, truth = test.float(), truth.float() / 255.0
 
-samples = 1000
+samples = 5000
 
 s1, s2 = sample(noisy_imgs_1, noisy_imgs_2, samples)
 
 results = dict()
-for (shallow_channels,
-     deep_channels), lr, momentum, nesterov, batch_size, downsampling_kernel_size, upsampling_kernel_size in hyperparameters_combinations:
-    epochs = 10
+# for (shallow_channels,
+#      deep_channels), lr, momentum, nesterov, batch_size, downsampling_kernel_size, upsampling_kernel_size in hyperparameters_combinations:
+#     epochs = 10
+#     description = f"shallow_channels={shallow_channels},deep_channels={deep_channels},lr={lr},momentum={momentum},nesterov={nesterov},batch_size={batch_size},downsampling_kernel_size={downsampling_kernel_size},upsampling_kernel_size={upsampling_kernel_size}"
+#     m = TestModel(shallow_channels, deep_channels, lr, momentum, nesterov, batch_size, downsampling_kernel_size,
+#                   upsampling_kernel_size)
+#     m.train(s1, s2, epochs)
+#     psnr = compute_psnr(m.predict(test) / 255., truth)
+#     print(description + f",PSNR={psnr.item()}")
+#     results[description] = psnr
+
+#     with open(r"results.pickle", "wb") as output_file:
+#         pickle.dump(results, output_file)
+
+
+
+for shallow_channels, deep_channels, lr, momentum, nesterov, batch_size, downsampling_kernel_size, upsampling_kernel_size in parameters:
+    shallow_channels = int(shallow_channels)
+    deep_channels = int(deep_channels)
+    lr = float(lr)
+    momentum = float(momentum)
+    nesterov = nesterov == 'True'
+    batch_size = int(batch_size)
+    downsampling_kernel_size = int(downsampling_kernel_size)
+    upsampling_kernel_size = int(upsampling_kernel_size)
+
+    epochs = 20
     description = f"shallow_channels={shallow_channels},deep_channels={deep_channels},lr={lr},momentum={momentum},nesterov={nesterov},batch_size={batch_size},downsampling_kernel_size={downsampling_kernel_size},upsampling_kernel_size={upsampling_kernel_size}"
     m = TestModel(shallow_channels, deep_channels, lr, momentum, nesterov, batch_size, downsampling_kernel_size,
                   upsampling_kernel_size)
@@ -124,5 +165,5 @@ for (shallow_channels,
     print(description + f",PSNR={psnr.item()}")
     results[description] = psnr
 
-with open(r"results.pickle", "wb") as output_file:
-    pickle.dump(results, output_file)
+    with open(r"top30.pickle", "wb") as output_file:
+        pickle.dump(results, output_file)
