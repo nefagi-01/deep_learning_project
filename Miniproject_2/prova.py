@@ -54,24 +54,30 @@ class TestModel:
         # This loads the parameters saved in bestmodel.pth into the model
         pass
 
-    def train(self, train_input, train_target, num_epochs):
+    def train(self, training_generator, num_epochs):
         # train input in range [0, 255], output of network in range [0, 1], train target in range [0, 255]
-        train_target = train_target / 255.0  # fix range of train target
+        # fix range of train target
         # train_input: tensor of size (N,C,H,W) containing a noisy version of the images
         # train_target: tensor of size (N, C, H, W) containing another noisy version of the same images, which only differs the input by their noise.
         losses = []
         for e in range(num_epochs):
-            inp, target = train_input, train_target
-            output = self.model.forward(inp)
-            loss = self.loss.forward(preds=output, labels=target)
-            losses.append(loss)
-            print("EPOCH {} --- LOSS {}".format(e, loss))
-            for inp, target in zip(train_input.split(self.batch_size), train_target.split(self.batch_size)):
+            
+            for train_input, train_target in training_generator:
+                train_input, train_target = train_input[0], train_target[0]
+                train_target = train_target / 255.0 
+                inp, target = train_input, train_target
                 output = self.model.forward(inp)
-                self.loss.forward(preds=output, labels=target)
-                self.optimizer.zero_grad()
-                self.model.backward(self.loss.backward())
-                self.optimizer.step()
+                loss = self.loss.forward(preds=output, labels=target)
+                losses.append(loss)
+                print("EPOCH {} --- LOSS {}".format(e, loss))
+                for inp, target in zip(train_input.split(self.batch_size), train_target.split(self.batch_size)):
+                    print("INP2")
+                    print(inp.shape)
+                    output = self.model.forward(inp)
+                    self.loss.forward(preds=output, labels=target)
+                    self.optimizer.zero_grad()
+                    self.model.backward(self.loss.backward())
+                    self.optimizer.step()
 
         inp, target = train_input, train_target
         output = self.model.forward(inp)
@@ -111,19 +117,19 @@ parameters = [[param.split('=')[1] for param in x[0].split(',')] for x in top]
 
 
 # Loading data
-path_train = './data/train_data.pkl'
-path_val = './data/val_data.pkl'
+# path_train = './data/train_data.pkl'
+# path_val = './data/val_data.pkl'
 
-test, truth = torch.load(path_val)
-test, truth = test.float(), truth.float() / 255.0
+# test, truth = torch.load(path_val)
+# test, truth = test.float(), truth.float() / 255.0
 
-noisy_imgs_1, noisy_imgs_2 = torch.load(path_train)
-noisy_imgs_1, noisy_imgs_2 = noisy_imgs_1.float(), noisy_imgs_2.float()
+# noisy_imgs_1, noisy_imgs_2 = torch.load(path_train)
+# noisy_imgs_1, noisy_imgs_2 = noisy_imgs_1.float(), noisy_imgs_2.float()
 
-samples = 50000
+# samples = 50000
 
-# s1, s2 = sample(noisy_imgs_1, noisy_imgs_2, samples)
-s1, s2 = noisy_imgs_1, noisy_imgs_2
+# # s1, s2 = sample(noisy_imgs_1, noisy_imgs_2, samples)
+# s1, s2 = noisy_imgs_1, noisy_imgs_2
 
 results = dict()
 # for (shallow_channels,
@@ -140,6 +146,32 @@ results = dict()
 #     with open(r"results.pickle", "wb") as output_file:
 #         pickle.dump(results, output_file)
 
+class Dataset(torch.utils.data.Dataset):
+  'Characterizes a dataset for PyTorch'
+  def __init__(self,type_):
+        'Initialization'
+        self.type = type_
+        self.list_IDs = [i for i in range(20)]
+  def __len__(self):
+        'Denotes the total number of samples'
+        return len(self.list_IDs)
+
+  def __getitem__(self, index):
+        'Generates one sample of data'
+        # Load data and get label
+        with open(f'./data/{self.type}/' + str(index) + f'_{self.type}_data.pkl', "rb") as f:
+            data = pickle.load(f)
+            d1, d2 = data
+            print(d1.shape)
+            print(d2.shape)
+        return d1, d2
+
+# Generators
+training_set = Dataset('train')
+training_generator = torch.utils.data.DataLoader(training_set)
+
+# validation_set = Dataset('validation')
+# validation_generator = torch.utils.data.DataLoader(validation_set, **params)
 
 
 for shallow_channels, deep_channels, lr, momentum, nesterov, batch_size, downsampling_kernel_size, upsampling_kernel_size in parameters:
@@ -157,7 +189,7 @@ for shallow_channels, deep_channels, lr, momentum, nesterov, batch_size, downsam
     description = f"shallow_channels={shallow_channels},deep_channels={deep_channels},lr={lr},momentum={momentum},nesterov={nesterov},batch_size={batch_size},downsampling_kernel_size={downsampling_kernel_size},upsampling_kernel_size={upsampling_kernel_size}"
     m = TestModel(shallow_channels, deep_channels, lr, momentum, nesterov, batch_size, downsampling_kernel_size,
                   upsampling_kernel_size)
-    m.train(s1, s2, epochs)
+    m.train(training_generator ,epochs)
     psnr = compute_psnr(m.predict(test) / 255., truth)
     print(description + f",PSNR={psnr.item()}")
     results[description] = psnr
