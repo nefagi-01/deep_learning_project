@@ -1,11 +1,11 @@
-from model import *
-from others.implementations import *
 import numpy as np
 import itertools
 import pickle
 import heapq
+import torch
 
-
+from model import *
+from others.implementations import *
 # HELPER FUNCTIONS
 
 def sample(tensor1, tensor2, k):
@@ -103,16 +103,9 @@ class TestModel:
 
 
 #TOP 30
-with open('./results1e3.pickle','rb') as f:
-    results1e3 = pickle.load(f)
-with open('./results5e2.pickle','rb') as f:
-    results5e2 = pickle.load(f)
-with open('./results1e2.pickle','rb') as f:
-    results1e2 = pickle.load(f)
-final = {**results1e2, **results5e2}
-final = {**final, **results1e3}
-top30 = heapq.nlargest(30, final.items(), key=lambda i: i[1])
-parameters = [[param.split('=')[1] for param in top[0].split(',')] for top in top30]
+with open('./top.pickle','rb') as f:
+    top = pickle.load(f)
+parameters = [[param.split('=')[1] for param in x[0].split(',')] for x in top]
 
 
 
@@ -120,14 +113,17 @@ parameters = [[param.split('=')[1] for param in top[0].split(',')] for top in to
 # Loading data
 path_train = './data/train_data.pkl'
 path_val = './data/val_data.pkl'
-noisy_imgs_1, noisy_imgs_2 = torch.load(path_train)
-noisy_imgs_1, noisy_imgs_2 = noisy_imgs_1.float(), noisy_imgs_2.float()
+
 test, truth = torch.load(path_val)
 test, truth = test.float(), truth.float() / 255.0
 
-samples = 5000
+noisy_imgs_1, noisy_imgs_2 = torch.load(path_train)
+noisy_imgs_1, noisy_imgs_2 = noisy_imgs_1.float(), noisy_imgs_2.float()
 
-s1, s2 = sample(noisy_imgs_1, noisy_imgs_2, samples)
+samples = 50000
+
+# s1, s2 = sample(noisy_imgs_1, noisy_imgs_2, samples)
+s1, s2 = noisy_imgs_1, noisy_imgs_2
 
 results = dict()
 # for (shallow_channels,
@@ -147,6 +143,7 @@ results = dict()
 
 
 for shallow_channels, deep_channels, lr, momentum, nesterov, batch_size, downsampling_kernel_size, upsampling_kernel_size in parameters:
+    print("batch_size: ", batch_size)
     shallow_channels = int(shallow_channels)
     deep_channels = int(deep_channels)
     lr = float(lr)
@@ -164,6 +161,3 @@ for shallow_channels, deep_channels, lr, momentum, nesterov, batch_size, downsam
     psnr = compute_psnr(m.predict(test) / 255., truth)
     print(description + f",PSNR={psnr.item()}")
     results[description] = psnr
-
-    with open(r"top30.pickle", "wb") as output_file:
-        pickle.dump(results, output_file)

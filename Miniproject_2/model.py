@@ -45,9 +45,14 @@ class Model:
                 self.optimizer.zero_grad()
                 self.model.backward(self.loss.backward())
                 self.optimizer.step()
+                del inp
+                del target
+                del output
+                del loss
         inp, target = train_input, train_target
         output = self.model.forward(inp)
         loss = self.loss.forward(preds=output, labels=target)
+            
         print("FINAL LOSS {}".format(loss))
 
     def predict(self, test_input) -> torch.Tensor:

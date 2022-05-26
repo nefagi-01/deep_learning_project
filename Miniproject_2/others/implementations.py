@@ -138,6 +138,7 @@ class Conv2d(Module):
 
     def forward(self, x):
         # save input for backward pass
+        del self.x
         self.x = self.add_padding(x.clone(), self.padding)
         return self.apply_conv(self.x, self.kernel, self.stride, include_bias=self.bias is not None)
 
@@ -205,6 +206,7 @@ class Sigmoid(Module):
         self.x = None
 
     def forward(self, x):
+        del self.x
         self.x = x.clone()
         temp = (1 + (-self.x).exp()).pow(-1)
         return temp
@@ -223,6 +225,7 @@ class ReLU(Module):
 
     # x_: the tensor outputed by the current layer
     def forward(self, x):
+        del self.x
         self.x = x.clone()
         temp = x * (x > 0)
         return temp
@@ -311,6 +314,7 @@ class SGD:
                 buf = self.momentum_buffer_list[i]
 
                 if buf is None:
+                    del buf
                     buf = d_p.clone()
                     self.momentum_buffer_list[i] = buf
                 else:
