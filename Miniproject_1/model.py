@@ -13,7 +13,7 @@ from others.psnr import compute_psnr
 class Model:
     def __init__(self) -> None:
         # instantiate model + optimizer + loss function + any other stuff you need
-        self.model = UNet()
+        self.model = AutoEncoder(num_layers=5)
         # Use GPU if possible
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(device=self.device)
