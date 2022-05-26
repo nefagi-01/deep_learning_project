@@ -93,11 +93,11 @@ class Conv2d(Module):
 
         # initialize weights and bias
         self.bias = empty(out_channels) if bias else None
-        self.kernel = empty((out_channels, in_channels, *kernel_size))
+        self.weight = empty((out_channels, in_channels, *kernel_size))
         self.xavier_init()
 
         # initialize gradient vectors
-        self.dl_dw = empty(self.kernel.size()).fill_(0)
+        self.dl_dw = empty(self.weight.size()).fill_(0)
         self.dl_db = empty(out_channels).fill_(0) if bias else None
 
         # stride
@@ -114,21 +114,21 @@ class Conv2d(Module):
         """
             Xavier's initialization for convolutional layers
         """
-        in_channels = self.kernel.shape[1]
-        out_channels = self.kernel.shape[0]
+        in_channels = self.weight.shape[1]
+        out_channels = self.weight.shape[0]
 
         # fan_in = filter dimensions * in_channels (number of neurons affecting an output neuron)
-        fan_in = in_channels * self.kernel.shape[2] * self.kernel.shape[3]
+        fan_in = in_channels * self.weight.shape[2] * self.weight.shape[3]
 
         # fan_out = filter dimensions * out_channels (number of neurons affected by an input neuron)
-        fan_out = out_channels * self.kernel.shape[2] * self.kernel.shape[3]
+        fan_out = out_channels * self.weight.shape[2] * self.weight.shape[3]
 
         # compute Xavier's bound for the uniform distribution
         bound = sqrt(2. / (fan_in + fan_out))
 
         # initialize weights
-        self.kernel.uniform_(-bound, bound)
-        self.kernel = self.kernel
+        self.weight.uniform_(-bound, bound)
+        self.weight = self.weight
 
         # initialize bias
         if self.bias is not None:
@@ -158,7 +158,7 @@ class Conv2d(Module):
         # save input for backward pass
         del self.x
         self.x = self.add_padding(x.clone(), self.padding)
-        return self.apply_conv(self.x, self.kernel, self.stride, include_bias=self.bias is not None)
+        return self.apply_conv(self.x, self.weight, self.stride, include_bias=self.bias is not None)
 
     def dilation(self, x):
         if self.stride != (1, 1):
@@ -170,8 +170,8 @@ class Conv2d(Module):
 
     def backward(self, dl_dout):
         # compute size of not covered part of self.x
-        not_covered = (self.x.shape[-2] - (self.stride[-2] * (dl_dout.shape[-2] - 1) + self.kernel.shape[-2]),
-                       self.x.shape[-1] - (self.stride[-1] * (dl_dout.shape[-1] - 1) + self.kernel.shape[-1]))
+        not_covered = (self.x.shape[-2] - (self.stride[-2] * (dl_dout.shape[-2] - 1) + self.weight.shape[-2]),
+                       self.x.shape[-1] - (self.stride[-1] * (dl_dout.shape[-1] - 1) + self.weight.shape[-1]))
 
         if not_covered != (0, 0):
             x = self.x[:, :, :-not_covered[-2], :-not_covered[-1]]
@@ -187,7 +187,7 @@ class Conv2d(Module):
 
         # compute gradient with respect to input
         # rotate kernel by 180 and transpose
-        kernel = self.kernel.flip(self.kernel.dim() - 2, self.kernel.dim() - 1)
+        kernel = self.weight.flip(self.weight.dim() - 2, self.weight.dim() - 1)
         kernel = kernel.transpose(0, 1)
 
         dl_dout = self.dilation(dl_dout)
@@ -210,8 +210,8 @@ class Conv2d(Module):
         return dl_dx
 
     def param(self):
-        return [[self.kernel, self.dl_dw], [self.bias, self.dl_db]] if self.bias is not None else [
-            [self.kernel, self.dl_dw]]
+        return [[self.weight, self.dl_dw], [self.bias, self.dl_db]] if self.bias is not None else [
+            [self.weight, self.dl_dw]]
 
     def zero_grad(self):
         self.dl_dw.fill_(0)

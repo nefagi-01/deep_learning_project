@@ -3,11 +3,11 @@ from torch.optim import Adam
 from torch import nn
 import torch
 
-from others.autoencoder import AutoEncoder
-from others.rednet import REDNet
-from others.unet import UNet
+from .others.autoencoder import AutoEncoder
+from .others.rednet import REDNet
+from .others.unet import UNet
 from pathlib import Path
-from others.psnr import compute_psnr
+from .others.psnr import compute_psnr
 
 
 class Model:
