@@ -1,7 +1,9 @@
 # For mini-project 1
-from torch.optim import Adam
+from torch.optim import Adam, SGD
 from torch import nn
 import torch
+from tqdm import tqdm
+from torch import clamp
 
 from others.autoencoder import AutoEncoder
 from others.rednet import REDNet
@@ -10,16 +12,16 @@ from pathlib import Path
 from others.psnr import compute_psnr
 
 
-class Model:
-    def __init__(self) -> None:
+class MyModel:
+    def __init__(self, network, batch) -> None:
         # instantiate model + optimizer + loss function + any other stuff you need
-        self.model = UNet()
+        self.model = network
         # Use GPU if possible
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(device=self.device)
-        self.optimizer = Adam(self.model.parameters(), lr=1e-3, betas=(0.9, 0.99), eps=1e-8)
+        self.optimizer = SGD(self.model.parameters(), lr=1e-2)
         self.loss = nn.MSELoss()
-        self.batch_size = 5
+        self.batch_size = batch
 
     def load_pretrained_model(self) -> None:
         # This loads the parameters saved in bestmodel.pth into the model
@@ -32,9 +34,10 @@ class Model:
         # train_target: tensor of size (N, C, H, W) containing another noisy version of the same images, which only differs the input by their noise.
         # Use GPU if possible
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        train_input, train_target = train_input/255.0, train_target/255.0
         train_input = train_input.to(device=device)
         train_target = train_target.to(device=device)
-        for e in range(num_epochs):
+        for e in tqdm(range(num_epochs)):
             for inp, target in zip(train_input.split(self.batch_size), train_target.split(self.batch_size)):
                 output = self.model(inp)
                 loss = self.loss(output, target)
@@ -44,8 +47,10 @@ class Model:
 
     def predict(self, test_input) -> torch.Tensor:
         # Use GPU if possible
+        test_input = test_input/255.0
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         test_input = test_input.to(device=device)
         #: test˙input : tensor of size (N1 , C, H, W) that has to be denoised by the trained or the loaded network .
         #: returns a tensor of the size (N1 , C, H, W)
-        return self.model(test_input)
+        output = self.model(test_input)*255.0
+        return clamp(output, 0.0, 255.0)
