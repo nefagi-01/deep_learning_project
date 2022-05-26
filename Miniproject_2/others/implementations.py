@@ -29,6 +29,24 @@ class Module(object):
 # - Mean Squared Error as a Loss Function [x]
 # - Stochastic Gradient Descent (SGD) optimizer [x]
 
+# (self, in_channels, out_channels, kernel_size, padding=0, stride=1, bias=True
+
+class Upsampling(Module):
+    def __init__(self, in_channels, out_channels, kernel_size, padding, scale_factor, dilation=None):
+        self.conv2d = Conv2d(in_channels, out_channels, kernel_size, padding=padding)
+        self.nearest_upsampling = NearestUpsampling(scale_factor)
+    def forward(self, x):
+        return self.conv2d.forward(self.nearest_upsampling.forward(x))
+
+    def backward(self, dl_dout):
+        return self.nearest_upsampling.backward(self.conv2d.backward(dl_dout))
+
+    def param(self):
+        return self.conv2d.param()
+
+    def zero_grad(self):
+        self.conv2d.zero_grad()
+
 
 class NearestUpsampling(Module):
     def __init__(self, scale_factor):

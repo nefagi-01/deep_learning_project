@@ -14,20 +14,35 @@ class Model:
             ReLU(),
             Conv2d(32, 64, kernel_size=2, stride=2, padding=0, bias=True),
             ReLU(),
-            NearestUpsampling(scale_factor=2),
-            Conv2d(64, 32, kernel_size=3, stride=1, padding=1, bias=True),
+            Upsampling(64, 32, kernel_size=3, padding=1, scale_factor=2),
             ReLU(),
-            NearestUpsampling(scale_factor=2),
-            Conv2d(32, 3, kernel_size=3, stride=1, padding=1, bias=True),
+            Upsampling(32, 3, kernel_size=3, padding=1, scale_factor=2),
             Sigmoid()
         )
         self.optimizer = SGD(self.model.param(), lr=1e-2, momentum=0.9, nesterov=True)
         self.loss = MSE()
         self.batch_size = 4
 
-    def load_pretrained_model(self) -> None:
+    def load_pretrained_model(self, path) -> None:
         # This loads the parameters saved in bestmodel.pth into the model
-        pass
+        with open(path, "rb") as f:
+            data = pickle.load(f)
+            self.model.modules[0].kernel, self.model.modules[0].bias = data[0]
+            self.model.modules[2].kernel, self.model.modules[2].bias = data[1]
+            self.model.modules[4].conv2d.kernel, self.model.modules[4].conv2d.bias = data[2]
+            self.model.modules[6].conv2d.kernel, self.model.modules[6].conv2d.bias = data[3]
+            self.optimizer = SGD(self.model.param(), lr=1e-2, momentum=0.9, nesterov=True)
+
+
+    def dump_model(self, path) -> None:
+        data = ((self.model.modules[0].kernel, self.model.modules[0].bias),\
+                    (self.model.modules[2].kernel, self.model.modules[2].bias),\
+                    (self.model.modules[4].conv2d.kernel, self.model.modules[4].conv2d.bias),\
+                    (self.model.modules[6].conv2d.kernel, self.model.modules[6].conv2d.bias)
+                    )
+        with open(path, "wb") as f:
+           pickle.dump(data, f)
+
 
     def train(self, train_input, train_target, num_epochs) -> None:
         # train input in range [0, 255], output of network in range [0, 1], train target in range [0, 255]
