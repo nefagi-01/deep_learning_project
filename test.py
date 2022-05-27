@@ -124,6 +124,7 @@ class Tests(unittest.TestCase):
                 self._test_train_model(i)
 
     def _test_train_model(self, project_number):
+        warn(f"Miniproject_{project_number}")
         Model = importlib.import_module(f"Miniproject_{project_number}.model").Model
         model = Model()
         model.load_pretrained_model()
