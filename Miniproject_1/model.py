@@ -49,6 +49,7 @@ class Model:
                 self.optimizer.step()
 
     def predict(self, test_input) -> torch.Tensor:
+        test_input = test_input.float()
         # Use GPU if possible
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         test_input = test_input.to(device=device)

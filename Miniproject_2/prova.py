@@ -4,7 +4,6 @@ import pickle
 import heapq
 import torch
 
-from model import *
 from others.implementations import *
 # HELPER FUNCTIONS
 
@@ -37,22 +36,34 @@ class TestModel:
             Conv2d(shallow_channels, deep_channels, kernel_size=downsampling_kernel_size, stride=2,
                    padding=downsampling_kernel_to_padding(downsampling_kernel_size), bias=True),
             ReLU(),
-            NearestUpsampling(scale_factor=2),
-            Conv2d(deep_channels, shallow_channels, kernel_size=upsampling_kernel_size, stride=1,
-                   padding=upsampling_kernel_to_padding(upsampling_kernel_size), bias=True),
+            Upsampling(deep_channels, shallow_channels, upsampling_kernel_size, upsampling_kernel_to_padding(upsampling_kernel_size), 2),
             ReLU(),
-            NearestUpsampling(scale_factor=2),
-            Conv2d(shallow_channels, 3, kernel_size=upsampling_kernel_size, stride=1,
-                   padding=upsampling_kernel_to_padding(upsampling_kernel_size), bias=True),
+            Upsampling(shallow_channels, 3, upsampling_kernel_size, upsampling_kernel_to_padding(upsampling_kernel_size), 2),
             Sigmoid()
         )
         self.optimizer = SGD(self.model.param(), lr=lr, momentum=momentum, nesterov=nesterov)
         self.loss = MSE()
         self.batch_size = batch_size
 
-    def load_pretrained_model(self) -> None:
+    def load_pretrained_model(self, path) -> None:
         # This loads the parameters saved in bestmodel.pth into the model
-        pass
+        with open(path, "rb") as f:
+            data = pickle.load(f)
+            self.model.modules[0].weight, self.model.modules[0].bias = data[0]
+            self.model.modules[2].weight, self.model.modules[2].bias = data[1]
+            self.model.modules[4].conv2d.weight, self.model.modules[4].conv2d.bias = data[2]
+            self.model.modules[6].conv2d.weight, self.model.modules[6].conv2d.bias = data[3]
+            self.optimizer = SGD(self.model.param(), lr=1e-2, momentum=0.9, nesterov=True)
+
+
+    def save_model(self, path) -> None:
+        data = ((self.model.modules[0].weight, self.model.modules[0].bias),\
+                    (self.model.modules[2].weight, self.model.modules[2].bias),\
+                    (self.model.modules[4].conv2d.weight, self.model.modules[4].conv2d.bias),\
+                    (self.model.modules[6].conv2d.weight, self.model.modules[6].conv2d.bias)
+                    )
+        with open(path, "wb") as f:
+           pickle.dump(data, f)
 
     def train(self, training_generator, num_epochs):
         # train input in range [0, 255], output of network in range [0, 1], train target in range [0, 255]
@@ -109,11 +120,12 @@ class TestModel:
 
 
 #TOP 30
-with open('./top.pickle','rb') as f:
-    top = pickle.load(f)
-parameters = [[param.split('=')[1] for param in x[0].split(',')] for x in top]
+# with open('./top.pickle','rb') as f:
+#     top = pickle.load(f)
+# parameters = [[param.split('=')[1] for param in x[0].split(',')] for x in top]
+#  ('shallow_channels=16,deep_channels=32,lr=0.01,momentum=0.9,nesterov=True,batch_size=4,downsampling_kernel_size=2,upsampling_kernel_size=5',
 
-
+shallow_channels, deep_channels, lr, momentum, nesterov, batch_size, downsampling_kernel_size, upsampling_kernel_size = (16,32,0.01,0.9,True,4, 2, 5)
 
 
 # Loading data
@@ -173,23 +185,27 @@ training_generator = torch.utils.data.DataLoader(training_set)
 # validation_set = Dataset('validation')
 # validation_generator = torch.utils.data.DataLoader(validation_set, **params)
 
-
-for shallow_channels, deep_channels, lr, momentum, nesterov, batch_size, downsampling_kernel_size, upsampling_kernel_size in parameters:
-    print("batch_size: ", batch_size)
-    shallow_channels = int(shallow_channels)
-    deep_channels = int(deep_channels)
-    lr = float(lr)
-    momentum = float(momentum)
-    nesterov = nesterov == 'True'
-    batch_size = int(batch_size)
-    downsampling_kernel_size = int(downsampling_kernel_size)
-    upsampling_kernel_size = int(upsampling_kernel_size)
-
-    epochs = 20
-    description = f"shallow_channels={shallow_channels},deep_channels={deep_channels},lr={lr},momentum={momentum},nesterov={nesterov},batch_size={batch_size},downsampling_kernel_size={downsampling_kernel_size},upsampling_kernel_size={upsampling_kernel_size}"
-    m = TestModel(shallow_channels, deep_channels, lr, momentum, nesterov, batch_size, downsampling_kernel_size,
+m = TestModel(shallow_channels, deep_channels, lr, momentum, nesterov, batch_size, downsampling_kernel_size,
                   upsampling_kernel_size)
-    m.train(training_generator ,epochs)
-    psnr = compute_psnr(m.predict(test) / 255., truth)
-    print(description + f",PSNR={psnr.item()}")
-    results[description] = psnr
+m.save_model('bestmodell.pth')
+
+
+# for shallow_channels, deep_channels, lr, momentum, nesterov, batch_size, downsampling_kernel_size, upsampling_kernel_size in parameters:
+#     print("batch_size: ", batch_size)
+#     shallow_channels = int(shallow_channels)
+#     deep_channels = int(deep_channels)
+#     lr = float(lr)
+#     momentum = float(momentum)
+#     nesterov = nesterov == 'True'
+#     batch_size = int(batch_size)
+#     downsampling_kernel_size = int(downsampling_kernel_size)
+#     upsampling_kernel_size = int(upsampling_kernel_size)
+
+#     epochs = 20
+#     description = f"shallow_channels={shallow_channels},deep_channels={deep_channels},lr={lr},momentum={momentum},nesterov={nesterov},batch_size={batch_size},downsampling_kernel_size={downsampling_kernel_size},upsampling_kernel_size={upsampling_kernel_size}"
+#     m = TestModel(shallow_channels, deep_channels, lr, momentum, nesterov, batch_size, downsampling_kernel_size,
+#                   upsampling_kernel_size)
+#     m.train(training_generator ,epochs)
+#     psnr = compute_psnr(m.predict(test) / 255., truth)
+#     print(description + f",PSNR={psnr.item()}")
+#     results[description] = psnr

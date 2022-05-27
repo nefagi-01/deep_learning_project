@@ -19,13 +19,13 @@ class Model:
     def __init__(self) -> None:
         # instantiate model + optimizer + loss function + any other stuff you need
         self.model = Sequential(
-            Conv2d(3, 32, kernel_size=2, stride=2, padding=downsampling_kernel_to_padding(2), bias=True),
+            Conv2d(3, 16, kernel_size=2, stride=2, padding=downsampling_kernel_to_padding(2), bias=True),
             ReLU(),
-            Conv2d(32, 64, kernel_size=2, stride=2, padding=downsampling_kernel_to_padding(2), bias=True),
+            Conv2d(16, 32, kernel_size=2, stride=2, padding=downsampling_kernel_to_padding(2), bias=True),
             ReLU(),
-            Upsampling(64, 32, kernel_size=5, padding=upsampling_kernel_to_padding(5), scale_factor=2),
+            Upsampling(32, 16, kernel_size=5, padding=upsampling_kernel_to_padding(5), scale_factor=2),
             ReLU(),
-            Upsampling(32, 3, kernel_size=5, padding=upsampling_kernel_to_padding(5), scale_factor=2),
+            Upsampling(16, 3, kernel_size=5, padding=upsampling_kernel_to_padding(5), scale_factor=2),
             Sigmoid()
         )
         self.optimizer = SGD(self.model.param(), lr=1e-2, momentum=0.9, nesterov=True)
@@ -68,10 +68,10 @@ class Model:
                 self.optimizer.zero_grad()
                 self.model.backward(self.loss.backward())
                 self.optimizer.step()
-        
 
     def predict(self, test_input) -> torch.Tensor:
         #: test˙input : tensor of size (N1 , C, H, W) that has to be denoised by the trained or the loaded network .
         #: returns a tensor of the size (N1 , C, H, W)
         # test input in range [0, 255], output in range [0, 255]
+        test_input = test_input.float()
         return self.model.forward(test_input) * 255.0
