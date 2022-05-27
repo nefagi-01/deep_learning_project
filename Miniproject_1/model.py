@@ -3,17 +3,15 @@ from torch.optim import Adam
 from torch import nn
 import torch
 
-from .others.autoencoder import AutoEncoder
-from .others.rednet import REDNet
-from .others.unet import UNet
+from others.unet import UNet
 from pathlib import Path
-from .others.psnr import compute_psnr
+from torch import clamp
 
 
 class Model:
     def __init__(self) -> None:
         # instantiate model + optimizer + loss function + any other stuff you need
-        self.model = Unet(num_features=32)
+        self.model = UNet(num_features=32)
         # Use GPU if possible
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(device=self.device)
