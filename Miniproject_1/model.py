@@ -3,7 +3,7 @@ from torch.optim import Adam
 from torch import nn
 import torch
 
-from others.unet import UNet
+from .others.unet import UNet
 from pathlib import Path
 from torch import clamp
 
@@ -22,7 +22,8 @@ class Model:
     def load_pretrained_model(self) -> None:
         # This loads the parameters saved in bestmodel.pth into the model
         model_path = Path(__file__).parent / "bestmodel.pth"
-        model = torch.load(model_path)
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model = torch.load(model_path , map_location=device)
         self.model.load_state_dict(model)
 
     def save_pretrained_model(self) -> None:
@@ -48,6 +49,7 @@ class Model:
                 self.optimizer.step()
 
     def predict(self, test_input) -> torch.Tensor:
+        print("passos")
         test_input = test_input.float()
         # Use GPU if possible
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -55,4 +57,5 @@ class Model:
         #: test˙input : tensor of size (N1 , C, H, W) that has to be denoised by the trained or the loaded network .
         #: returns a tensor of the size (N1 , C, H, W)
         output = self.model(test_input)*255.0
+        print("finisco")
         return clamp(output, 0.0, 255.0)
