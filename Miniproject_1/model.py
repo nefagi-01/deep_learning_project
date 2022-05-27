@@ -27,10 +27,16 @@ class Model:
         model = torch.load(model_path)
         self.model.load_state_dict(model)
 
+    def save_pretrained_model(self) -> None:
+        model_path = Path(__file__).parent / "bestmodel.pth"
+        torch.save(self.model.state_dict(), model_path)
+
     def train(self, train_input, train_target, num_epochs) -> None:
         # train_input: tensor of size (N,C,H,W) containing a noisy version of the images
         # train_target: tensor of size (N, C, H, W) containing another noisy version of the same images, which only differs the input by their noise.
         # Use GPU if possible
+        train_input = train_input.float()
+        train_target = train_target.float()
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         train_input = train_input.to(device=device)
         train_target = train_target.to(device=device)
@@ -48,4 +54,4 @@ class Model:
         test_input = test_input.to(device=device)
         #: test˙input : tensor of size (N1 , C, H, W) that has to be denoised by the trained or the loaded network .
         #: returns a tensor of the size (N1 , C, H, W)
-        return self.model(test_input)
+        return self.model(test_input) * 255.0
