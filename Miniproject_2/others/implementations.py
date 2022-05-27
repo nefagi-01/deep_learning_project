@@ -3,7 +3,6 @@ from torch.nn.functional import fold, unfold
 from math import sqrt
 
 
-# module skeleton
 class Module(object):
     def forward(self, *x_):
         raise NotImplementedError
@@ -17,19 +16,6 @@ class Module(object):
     def zero_grad(self):
         pass
 
-
-# TO IMPLEMENT:
-
-# -Convolution layer. [x]
-# - Transpose convolution layer, or alternatively a combination of Nearest neighbor upsampling + Convolution. []
-# - Upsampling layer, which is usually implemented with transposed convolution, but you can alternatively use a combination of Nearest neighbor upsampling + Convolution for this mini-project. []
-# - ReLU [x]
-# - Sigmoid [x]
-# - A container like torch.nn.Sequential to put together an arbitrary configuration of modules together. [x]
-# - Mean Squared Error as a Loss Function [x]
-# - Stochastic Gradient Descent (SGD) optimizer [x]
-
-# (self, in_channels, out_channels, kernel_size, padding=0, stride=1, bias=True
 
 class Upsampling(Module):
     def __init__(self, in_channels, out_channels, kernel_size, padding, scale_factor, dilation=None):
@@ -111,9 +97,7 @@ class Conv2d(Module):
         self.padding = padding
 
     def xavier_init(self):
-        """
-            Xavier's initialization for convolutional layers
-        """
+    
         in_channels = self.weight.shape[1]
         out_channels = self.weight.shape[0]
 
