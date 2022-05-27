@@ -49,13 +49,11 @@ class Model:
                 self.optimizer.step()
 
     def predict(self, test_input) -> torch.Tensor:
-        print("passos")
-        test_input = test_input.float()
+        test_input = test_input.float() / 255.0
         # Use GPU if possible
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         test_input = test_input.to(device=device)
         #: test˙input : tensor of size (N1 , C, H, W) that has to be denoised by the trained or the loaded network .
         #: returns a tensor of the size (N1 , C, H, W)
         output = self.model(test_input)*255.0
-        print("finisco")
         return clamp(output, 0.0, 255.0)

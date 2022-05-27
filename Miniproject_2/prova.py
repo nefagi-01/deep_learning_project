@@ -1,6 +1,7 @@
 import numpy as np
 import itertools
 import pickle
+from pathlib import Path
 import heapq
 import torch
 from others.psnr import compute_psnr
@@ -80,7 +81,7 @@ class TestModel:
                 self.model.backward(self.loss.backward())
                 self.optimizer.step()
             psnr = compute_psnr(self.predict(test) / 255., truth)
-            print(f"PSNR-{psnr}")
+            print(f"PSNR {psnr}")
             psnr_list.append(psnr)
         return psnr_list
 
@@ -106,15 +107,16 @@ test, truth = test.float(), truth.float() / 255.0
 noisy_imgs_1, noisy_imgs_2 = torch.load(path_train)
 noisy_imgs_1, noisy_imgs_2 = noisy_imgs_1.float(), noisy_imgs_2.float()
 
-noisy_imgs_1, noisy_imgs_2 = noisy_imgs_1[:100], noisy_imgs_2[:100]
+epochs = 5
 
-epochs = 1
 
 m = TestModel()
 
+m.load_pretrained_model()
+
 psnr_list = m.train(noisy_imgs_1, noisy_imgs_2 ,epochs, test, truth)
 
-m.dump_model('bestmodelll.pth')
+m.dump_model('./Miniproject_2/bestmodel.pth')
 
 with open("psnr_list.pickle", "wb") as f:
     pickle.dump(psnr_list, f)

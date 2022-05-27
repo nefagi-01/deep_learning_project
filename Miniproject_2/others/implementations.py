@@ -85,7 +85,7 @@ class NearestUpsampling(Module):
 
 
 class Conv2d(Module):
-    def __init__(self, in_channels, out_channels, kernel_size, padding=0, stride=1, bias=True):
+    def __init__(self, in_channels, out_channels, kernel_size, padding=0, stride=1, bias=True, dilation=None):
 
         self.x = None
         if type(kernel_size) is int:
